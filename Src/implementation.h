@@ -19,7 +19,7 @@
 	@note This value should be set BY HANDS AFTER system clock setup!
 
 	???
-	@recommendation choose value  multiple to 8 Mhz multiple: 8, 16, 24, 32, 40, 48, 56, 64Mhz for reliability improvment - if Pll
+	@recommendation choose value  multiple to 8 Mhz : 8, 16, 24, 32, 40, 48, 56, 64Mhz for reliability improvment - if Pll
  */
 #define CLOCK_SPEED 				24000000 // Hz = 24 Mhz
 
@@ -37,8 +37,9 @@
 
 
 
-uint32_t clock_setup(void);
+uint32_t clock_setup( void );
 
+uint32_t pll_setup( uint32_t is_HSE_clock_source );
 
 
 
@@ -69,9 +70,14 @@ void delay_in_milliseconds(const uint32_t * time_in_millisecond);
 void delay(const uint32_t time_in_milliseconds);
 
 
+/*** Enums ***/
 
+/*
+	@brief makes clock setup code more clear.
+ */
+enum hse_status { hse_is_not_ok, hse_is_ok };
 
-//*** Non user-adjustable defines  ***
+/*** Non user-adjustable defines  ***/
 /*
 	@brief All defines that should not be changed contains here. Also all checks for #define mistakes happen here redefines happen here so they will be at top of any listing and won't distract programmers.
  */
@@ -81,9 +87,17 @@ void delay(const uint32_t time_in_milliseconds);
 	#error "Clock speed define is higher than maximum value of 64 Mhz"
 
 #elif CLOCK_SPEED < 8000000
-	#error "Clock speed defin is less then minimum value of 8 Mhz"
+	#error "Clock speed define is less then minimum value of 8 Mhz"
 
 #endif
+
+/* Clock prescalers definition */
+#define	PLLN_VALUE  CLOCK_SPEED/1000000
+#define PLLR_VALUE	8
+#define PLLM_VALUE	1
+
+/* Completely random value to determine the waiting-state length */
+#define DUMMY_DELAY_VALUE 10000
 
 
 #endif /* IMPLEMENTATION_H_ */

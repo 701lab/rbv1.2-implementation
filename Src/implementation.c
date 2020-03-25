@@ -1,11 +1,3 @@
-/*
- * implementation.c
- *
- *  Created on: Mar 24, 2020
- *      Author: Андрей
- */
-
-
 #include "implementation.h"
 
 
@@ -53,26 +45,102 @@
 */
 
 
-	/*
-		@brief system clock half smart setup.
+/*!
+	@brief system clock half smart setup.
 
-		@Documentation:
-		> STM32G0x1 reference manual chapter 5.
-	 */
+	@Documentation:
+	> STM32G0x1 reference manual chapter 3 (Flash) - flash access latency (3.3.4);
+	> STM32G0x1 reference manual chapter 5 (RCC) - all information about clock setup.
+
+	@Calculations
+
+	> When using 8 Mhz HSE (external oscillator) as a clock sours for PLL (default setup).
+
+		@note	For simplicity, only frequencies multiple to 1 Mhz are allowed.
+
+		We assume:
+
+		PLLN = CLOCK_SPEED / 1000000
+		PLLR = 8
+		PLLM = 1
+
+					oscillator_frequensy * PLLN       8 * PLLN
+		SYSCLK =  ------------------------------- = ------------
+						   PLLM * PLLR				   1 * 8
+
+		That means that we can have any frequency from 1 to 64 Mhz with a step of 1 Mhz and only one variable change
+
+	> When using 16 Mhz HSI (internal oscillator) as a clock sours for PLL (critical - when HSE can't be enabled)
+
+		@note	For simplicity, only frequencies multiple to 1 Mhz are allowed.
+
+		We assume:
+
+		PLLN = CLOCK_SPEED / 1000000
+		PLLR = 8
+		PLLM = 2
+
+					oscillator_frequensy * PLLN       16 * PLLN
+		SYSCLK =  ------------------------------- = ------------
+						   PLLM * PLLR				   2 * 8
+
+		That means that we can have any frequency from 1 to 64 Mhz with a step of 1 Mhz and only one variable change. The same way as with HSE.
+
+	@note AHB prescaler always equals to 1, so HCLK = SYSCLK
+	@note if PLL is not working (i don't know if it is really possible) HSI is used as a clock source no matter of
+when both PLL and HSE can't be enabled (i don't know if it is really possible that PLL can't start, but if there is a way to track it, we should) HSE will be used as clock source.
 
 
+	@function completeness = 40% |      ####|
+
+	@TODO
+	1. Implement limmited waiting
+	2. Check if clock setup works correctly with different options of CLOCK_SPEED
+	3. Check if clock setup will work correctly with HSE soldered out
+	4. solder up short wires and use breadboard to check how controller will handle loosing of HSE
+
+
+ */
 uint32_t clock_setup(void){
 
+	/* Flash read access latency from Clock_speed definition */
 	#if	( CLOCK_SPEED > 48000000 )
-		FLASH->ACR |= 0x02; // To make clock speed more than 48 MHz flash access time should be 2 cycles
+
+		FLASH->ACR |= FLASH_ACR_LATENCY_1; // 0x02 - 2 clock cycles latency
+
+	#elif ( CLOCK_SPEED > 24000000 )
+
+		FLASH->ACR |= FLASH_ACR_LATENCY_0;	// 0x01 - 1 clock cycle latency
+
 	#endif
 
-		FLASH->ACR |= 0x02; // To make clock speed more than 48 MHz flash access time should be 2 cycles
+
+	uint32_t hse_status = 0;
 
 	RCC->CR |= RCC_CR_HSEON;
+	for( uint32_t i = 0; i < DUMMY_DELAY_VALUE; ++i )
+	{
+		if( (RCC->CR & RCC_CR_HSERDY) = RCC_CR_HSERDY )
+		{
+			pll_setup(hse_is_ok);
+			return 0;
+		}
+	}
+
+	pll_setup(hse_is_not_ok);
+	return 3123; // Some kind of mistake that says that hse didn't start properly
+
+//	while((RCC->CR & RCC_CR_HSERDY) != RCC_CR_HSERDY){}
+
+	return 0;
+}
+
+
+uint32_t pll_setup( uint32_t is_HSE_clock_source )
+{
 	RCC->PLLCFGR = 0;
-	RCC->PLLCFGR |= 0x70000C03; // Set PLLR divider to 4 and enable PLLR output, set PLLN to 12, set HSE as a clock source
-	while((RCC->CR & RCC_CR_HSERDY) != RCC_CR_HSERDY){}
+	RCC->PLLCFGR |= ( (PLLR_VALUE - 1) << RCC_PLLCFGR_PLLREN_Pos ) | RCC_PLLCFGR_PLLREN | ( PLLN_VALUE << RCC_PLLCFGR_PLLN_Pos ) | RCC_PLLCFGR_PLLSRC_HSE;
+//	RCC->PLLCFGR |= 0x70000C03; // Set PLLR divider to 4 and enable PLLR output, set PLLN to 12, set HSE as a clock source
 
 	RCC->CR |= RCC_CR_PLLON;
 	while((RCC->CR & RCC_CR_PLLRDY) != RCC_CR_PLLRDY){}	// Wait until PLL starts
@@ -81,9 +149,6 @@ uint32_t clock_setup(void){
 	RCC->CFGR |= RCC_CFGR_SW_1; 	// PLL as clock source
 	while((RCC->CFGR & RCC_CFGR_SWS_1) != RCC_CFGR_SWS_1){}
 }
-
-
-
 
 
 uint32_t full_device_setup(void){
