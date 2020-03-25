@@ -42,24 +42,53 @@
 	USART:
 		PB6-7 - TX and RX respectively (USART1, alternate function 0).
 
+	TIM14 - high speed counter for time calculations;
+	TODO: нужно изучить, как запускаются часы реального времени и наверное использовать для вычисления времени их. Хотят тут станет вопрос, что такие часы могут
+	быть не совсем надежными и все же будет оправданно использовать один из таймеров вместо часов реального времени.
+
+	TIM15 - high speed counter for precise speed calculations.
+
+	TIM16 - timer for proper delay implementation
+
 */
 
 
+	/*
+		@brief system clock half smart setup.
 
-uint32_t device_setup(void){
+		@Documentation:
+		> STM32G0x1 reference manual chapter 5.
+	 */
 
-//	//*******24 Mhz secure clock setup*******//
-//	RCC->CR |= RCC_CR_HSEON;
-//	RCC->PLLCFGR = 0;
-//	RCC->PLLCFGR |= 0x70000C03; // Set PLLR divider to 4 and enable PLLR output, set PLLN to 12, set HSE as a clock source
-//	while((RCC->CR & RCC_CR_HSERDY) != RCC_CR_HSERDY){}
-//
-//	RCC->CR |= RCC_CR_PLLON;
-//	while((RCC->CR & RCC_CR_PLLRDY) != RCC_CR_PLLRDY){}	// Wait until PLL starts
-//
-//	RCC->CFGR &= ~RCC_CFGR_SW_Msk; 	// Clear sw bits
-//	RCC->CFGR |= RCC_CFGR_SW_1; 	// PLL as clock source
-//	while((RCC->CFGR & RCC_CFGR_SWS_1) != RCC_CFGR_SWS_1){}
+
+uint32_t clock_setup(void){
+
+	#if	( CLOCK_SPEED > 48000000 )
+		FLASH->ACR |= 0x02; // To make clock speed more than 48 MHz flash access time should be 2 cycles
+	#endif
+
+		FLASH->ACR |= 0x02; // To make clock speed more than 48 MHz flash access time should be 2 cycles
+
+	RCC->CR |= RCC_CR_HSEON;
+	RCC->PLLCFGR = 0;
+	RCC->PLLCFGR |= 0x70000C03; // Set PLLR divider to 4 and enable PLLR output, set PLLN to 12, set HSE as a clock source
+	while((RCC->CR & RCC_CR_HSERDY) != RCC_CR_HSERDY){}
+
+	RCC->CR |= RCC_CR_PLLON;
+	while((RCC->CR & RCC_CR_PLLRDY) != RCC_CR_PLLRDY){}	// Wait until PLL starts
+
+	RCC->CFGR &= ~RCC_CFGR_SW_Msk; 	// Clear sw bits
+	RCC->CFGR |= RCC_CFGR_SW_1; 	// PLL as clock source
+	while((RCC->CFGR & RCC_CFGR_SWS_1) != RCC_CFGR_SWS_1){}
+}
+
+
+
+
+
+uint32_t full_device_setup(void){
+
+
 
 	//*** Enable all needed peripherals ***//
 	RCC->IOPENR |= RCC_IOPENR_GPIOAEN | RCC_IOPENR_GPIOBEN | RCC_IOPENR_GPIOCEN | RCC_IOPENR_GPIODEN;
@@ -160,12 +189,12 @@ uint32_t device_setup(void){
 	ADC1->CR |= ADC_CR_ADEN;		// Enable ADC
 	while(!(ADC1->ISR & ADC_ISR_ADRDY)) {}
 
-
-	//*** System timer setup ***//
-	SysTick->LOAD = 14999; // 200 times per second at 24 MHZ
-	SysTick->VAL = 0;
-	NVIC_EnableIRQ(SysTick_IRQn);
-	SysTick->CTRL |= 0x03; // Starts SysTick, enables interrupts
+//
+//	//*** System timer setup ***//
+//	SysTick->LOAD = 14999; // 200 times per second at 24 MHZ
+//	SysTick->VAL = 0;
+//	NVIC_EnableIRQ(SysTick_IRQn);
+//	SysTick->CTRL |= 0x03; // Starts SysTick, enables interrupts
 
 	return 0;
 }
@@ -177,9 +206,9 @@ void blink(void){
 	uint32_t temp_time = 1000000;
 
 	GPIOD->ODR ^= 0x0F;
-	delay(temp_time);
+	delay_in_milliseconds(&temp_time);
 	GPIOD->ODR ^= 0x0F;
-	delay(temp_time);
+	delay_in_milliseconds(&temp_time);
 
 }
 
@@ -189,11 +218,4 @@ void delay_in_milliseconds(const uint32_t *time_in_millisecond){
 }
 
 
-void delay(const uint32_t time_in_milliseconds){
-
-	for(int i = 0; i < time_in_milliseconds; ++i){
-		asm("NOP");
-	}
-
-}
 

@@ -2,20 +2,24 @@
 #include "implementation.h"
 
 
+// 		В такой реализации, когда включено прерывание, но при этом не написаны обработчики, программа крашится. Соответственно это хорошая возможность
+// 	потестировать watchdog, чтобы он мог чуть что ресетнуть контроллер при необходимости
+
 uint32_t iterator = 0;
 
 
 int main(void)
 {
 
-	device_setup();
+	full_device_setup();
 
-	for(;;){
+	while(1){
 
 		GPIOD->ODR ^= 0x03;
-		for(iterator = 0; iterator < 5000; iterator++){
-			__NOP();
-		}
-//		blink();
+		blink();
+
 	}
 }
+
+
+
