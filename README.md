@@ -2,7 +2,7 @@
 
 ![version](https://img.shields.io/github/v/release/701lab/rbv1.2-implementation?color=blue&label=Version)
 
-Can be used as a template for developing applications on robots board v1.2 without deep diving into hardware setups.
+This repo can be used as a template for developing applications on robots board v1.2 without deep diving into hardware setups.
 Serves three main goals:
 1. Provides user with methods to setup all used in device peripherals: system clock, GPIO, timers, etc.
 2. Provides user with methods for self-diagnostics of the device and error handling.
@@ -16,7 +16,7 @@ Serves three main goals:
 * main.c file with a minimum amount of code to impleme
 
 ## How to use
-* clone and add all files into you new robots board v1.2 project;
+* clone this repo and add all files into you new robots board v1.2 project;
 * go into implementations.h file and set up all user-adjustable defines with respect to the project requirements;
 * look through all provided user functions to understand what can be used in the project;
 * start development.
