@@ -3,25 +3,20 @@
 
 #include "stm32g071xx.h"
 
-
-//****** User-adjustable defines ******
-	/*
-	 * @brief	Those defines used in device initialization thus are very important.
-	 *
-	 * For proper device work all values should be changed before developing a new project based on this file.
-	 */
+//*************************************//
+//****** User-adjustable defines ******//
+//*************************************//
 
 /*
-	@brief contains SYSCLK value AFTER clock setup in Hz
+	@brief 	Contains desired SYSCLK and HCLK values in Hz
 
-	This value isn't used to setup SYSCLK. The main goal of this value is to be a reference for all time-based setups and clock setup error handling.
+	Used in all time related things: SYSCLK setup, general purpose timers setup, PWM setup, time calculation and so forth.
 
-	@note This value should be set BY HANDS AFTER system clock setup!
+	@note 	Only frequencies multiple to 2Mhz are allowed and PLLN is has a minimum value of 8.
+	 	 	Allowed frequencies are: 16000000, 18000000 ... 62000000, 64000000 Hz.
 
-	???
-	@recommendation choose value  multiple to 8 Mhz : 8, 16, 24, 32, 40, 48, 56, 64Mhz for reliability improvment - if Pll
  */
-#define CLOCK_SPEED 				24000000 // Hz = 24 Mhz
+#define CLOCK_SPEED 				48000000 // Hz = 24 Mhz
 
 
 /*
@@ -32,19 +27,42 @@
 #define MOTORS_PWM_FREQUENSY		20000	// Hz
 #define MAX_PWM_WIDTH	 			1199
 
-//****** End of User-adjustable defines ******
+//****** End of User-adjustable defines ******//
 
 
+//****************************//
+//****** User functions ******//
+//****************************//
+// 	@brief	Can be called in the code by the programmer while developing applications
 
+/*
+	@brief	Sets up SYSCLK to CLOCK_SPEED with taking into account problems with different sources
+ */
+uint32_t system_clock_setup(void);
 
-uint32_t clock_setup( void );
+/*
+	@brief	Sets up GPIO for all needed on device functions
+ */
+void gpio_setup(void);
 
-uint32_t pll_setup( uint32_t is_HSE_clock_source );
+/*
+	@brief	Sets up all used on the board timers and enables desired interrupts
+ */
+void timers_setup(void);
 
+uint32_t full_device_setup(void);
 
+//********************************//
+//****** Non-User functions ******//
+//********************************//
+//	@brief	Called only by the system when needed. Should not be used in the application code
 
+/*
+	@brief	sets up SYSCLK to CLOCK_SPEED with taking into account problems with different sources
+ */
+uint32_t pll_setup(uint32_t is_HSE_clock_source);
 
-uint32_t gpio_setup(void);
+void NMI_Handler(); //!!!!!!
 
 uint32_t adc_setup(void);
 
@@ -56,7 +74,6 @@ uint32_t safe_setup(void);
 // 	Сначала будет выключена
 uint32_t interrupt_setup(void);
 
-uint32_t full_device_setup(void);
 
 
 
@@ -70,13 +87,6 @@ void delay_in_milliseconds(const uint32_t * time_in_millisecond);
 void delay(const uint32_t time_in_milliseconds);
 
 
-/*** Enums ***/
-
-/*
-	@brief makes clock setup code more clear.
- */
-enum hse_status { hse_is_not_ok, hse_is_ok };
-
 /*** Non user-adjustable defines  ***/
 /*
 	@brief All defines that should not be changed contains here. Also all checks for #define mistakes happen here redefines happen here so they will be at top of any listing and won't distract programmers.
@@ -84,17 +94,22 @@ enum hse_status { hse_is_not_ok, hse_is_ok };
 
 /* Check for correct system clock define  */
 #if (CLOCK_SPEED > 64000000)
-	#error "Clock speed define is higher than maximum value of 64 Mhz"
+	#error Clock speed define is higher than maximum value of 64 Mhz
 
-#elif CLOCK_SPEED < 8000000
-	#error "Clock speed define is less then minimum value of 8 Mhz"
+#elif CLOCK_SPEED < 16000000
+	#error Clock speed define is less then minimum value of 16 Mhz
 
 #endif
 
-/* Clock prescalers definition */
-#define	PLLN_VALUE  CLOCK_SPEED/1000000
-#define PLLR_VALUE	8
-#define PLLM_VALUE	1
+/* System clock prescalers*/
+#define	PLLN_VALUE  			CLOCK_SPEED/2000000
+#define PLLR_VALUE				4
+#define PLL_OFFSET				1					// Offset  for PLLM and PLLR
+#define PLLM_VALUE_WITH_HSI		2
+
+/* HSE state */
+#define HSE_IS_OK 		1
+#define HSE_IS_NOT_OK 	0
 
 /* Completely random value to determine the waiting-state length */
 #define DUMMY_DELAY_VALUE 10000

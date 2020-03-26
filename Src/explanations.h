@@ -6,9 +6,9 @@
 
 	1. SYSCLK frequency could be changed only by reprogramming. So no dynamic changes are allowed. The main reason is the big amount of time-dependent functions because of control theory implementations.
 	 	 Every SYSCLK change should be carefully traced in all time-related setups.
-	 	 Only frequencies multiple to 1 Mhz are allowed.
+	 	 Only frequencies multiple to 2 Mhz are allowed.
 
-	2.
+	2. All peripherals sets up in different functions. It makes code bigger, but easier to comment, understand and maintain.
 
 
 
