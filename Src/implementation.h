@@ -14,9 +14,8 @@
 
 	@note 	Only frequencies multiple to 2Mhz are allowed and PLLN is has a minimum value of 8.
 	 	 	Allowed frequencies are: 16000000, 18000000 ... 62000000, 64000000 Hz.
-
  */
-#define SYSCLK_FREQUENCY 			48000000 // Hz = 24 Mhz
+#define SYSCLK_FREQUENCY 			24000000 // Hz = 24 Mhz
 
 /*
 	@brief 	PWM frequency for motor control in Hz and related PWM precision
@@ -28,14 +27,14 @@
  	 	 	 	 	  PWM_FREQUENCY
  */
 #define PWM_FREQUENCY 				20000	// Hz = 20 Khz
-#define PWM_PRECISION				(SYSCLK_FREQUENCY / PWM_FREQUENCY - 1)	// -1 is needed for proper timers setup. Shouldn't be changed
+#define PWM_PRECISION				(SYSCLK_FREQUENCY / PWM_FREQUENCY - 1)	// -1 is needed for proper timers setup. Equation shouldn't be changed
 
 /*
 	@brief	Amount of times system clock interrupt occurs in one second
 
 	Determines control system outer loop frequency
  */
-#define SYSTICK_FREQUENCY			1000		// Hz
+#define SYSTICK_FREQUENCY			200		// Hz
 
 //****** End of User-adjustable defines ******//
 
@@ -45,11 +44,44 @@
 //****************************//
 // @brief	Can be called in the code by the programmer while developing applications.
 
-// @brief	Sets up SYSCLK to SYSCLK_FREQUENCY with taking into account problems with different sources
-uint32_t system_clock_setup(void);
+
 
 // @brief	Sets up all desired device peripherals
 uint32_t full_device_setup(void);
+
+/*
+	@brief	Enables UART 1 with given baud rate with TX and RX enable
+
+	Leaves all other parameters unchanged (the most basic UART configuration). So UART parameters are:
+	> transmission speed = @param[in] transmission_speed_in_bauds;
+	> 8 Data bits
+	> 1 stop bit
+	> parity control disabled
+	> no interrupts are enbabled
+	> no DMA
+	> FIFO disabled
+	> etc (not advanced features at all)
+ */
+void basic_uart1_setup(const uint32_t transmission_speed_in_bauds);
+
+// @note Not implemented yet !!!
+//void advanced_uart1_setup(const uint32_t transmission_speed_in_bauds);
+
+// @brief Sends one raw byte
+void uart1_send_byte(const uint8_t message_byte);
+
+// @note Not implemented yet !!!
+//void uart1_send_array(const uint8_t byte_message);
+
+
+uint32_t leds_diagnostic(void);
+
+uint32_t motor_driver_diagnostic(void);
+
+uint32_t imu_diagnostic(void);
+
+uint32_t radio_module_diagnostic(void);
+
 
 
 
@@ -57,6 +89,9 @@ uint32_t full_device_setup(void);
 //****** Non-User functions ******//
 //********************************//
 //	@brief	Called only by the system when needed. Should not be used in the application code
+
+// @brief	Sets up SYSCLK to SYSCLK_FREQUENCY with taking into account problems with different sources
+uint32_t system_clock_setup(void);
 
 // @brief	Sets up PLL with respect to input source and SYSCLK_FREQUENCY
 uint32_t pll_setup(uint32_t is_HSE_clock_source);

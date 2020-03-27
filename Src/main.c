@@ -37,6 +37,8 @@ int main(void)
 {
 	full_device_setup();
 
+	basic_uart1_setup(19200);
+
 
 //	TIM1->CCR4 = PWM_PRECISION/2;
 
@@ -44,7 +46,7 @@ int main(void)
 
 		GPIOD->ODR ^= 0x03;
 		blink();
-
+		uart1_send_byte(0x68);
 	}
 }
 

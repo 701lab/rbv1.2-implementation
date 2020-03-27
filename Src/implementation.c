@@ -253,7 +253,7 @@ void NMI_Handler()
  */
 void gpio_setup(void)
 {
-	//*** Enable GPIO ***//
+	//*** GPIO peripheral clock enable ***//
 	RCC->IOPENR |= RCC_IOPENR_GPIOAEN | RCC_IOPENR_GPIOBEN | RCC_IOPENR_GPIOCEN | RCC_IOPENR_GPIODEN;
 
 	//*** Port A full GPIO setup ***//
@@ -355,9 +355,10 @@ void gpio_setup(void)
 	@brief	Sets up all used on the board timers and enables desired interrupts
 
 	@Documentation:
+		> STM32G0x1 reference manual chapter 5 (RCC) - all information about peripheral locations and enabling;
 		> STM32G0x1 reference manual chapter 20 (TIM1) - TIM1 setup information;
 		> STM32G0x1 reference manual chapter 21 (TIM2/TIM3) - TIM2 and TIM3 setup information;
-	 	> Cortex-M0+ programming manual for stm32 chapter 4 - SysTick timer (STK) (4.4);
+	 	> Cortex-M0+ programming manual for stm32 chapter 4 - SysTick timer (STK)(4.4).
 
 	Timer channels allocations with respect to function.
 
@@ -380,6 +381,7 @@ void gpio_setup(void)
  */
 void timers_setup(void)
 {
+	//*** Timers peripheral clock enable ***//
 	RCC->APBENR1 |= RCC_APBENR1_TIM2EN | RCC_APBENR1_TIM3EN;
 	RCC->APBENR2 |= RCC_APBENR2_TIM1EN;
 //	RCC->APBENR2 |= RCC_APBENR2_TIM1EN | RCC_APBENR2_TIM14EN | RCC_APBENR2_TIM15EN;
@@ -434,8 +436,43 @@ void timers_setup(void)
 	SysTick->CTRL |= 0x03; // Start SysTick, enable interrupt
 }
 
+/*
+	@brief	Enable UART transmission and reception with given baud rate
+
+	@param[in] transmission_speed_in_bauds UART desired baud rate
+
+	Leaves all other parameters unchanged (the most basic UART configuration). So UART parameters are:
+	> transmission speed = @param[in] transmission_speed_in_bauds;
+	> 8 Data bits
+	> 1 stop bit
+	> parity control disabled
+	> no interrupts are enbabled
+	> no DMA
+	> FIFO disabled
+	> etc (not advanced features at all)
+
+	@Doucementation
+		> STM32G0x1 reference manual chapter 5 (RCC) - all information about peripheral locations and enabling;
+		> STM32G0x1 reference manual chapter 32 (USART/UART) - UART setup information.
+ */
+
+void basic_uart1_setup(const uint32_t transmission_speed_in_bauds)
+{
+	RCC->APBENR2 |= RCC_APBENR2_USART1EN;
+
+	USART1->BRR = SYSCLK_FREQUENCY/transmission_speed_in_bauds;
+	USART1->CR1 |= USART_CR1_UE;
+	USART1->CR1 |= USART_CR1_TE | USART_CR1_RE;
+}
 
 
+
+void uart1_send_byte(const uint8_t message_byte)
+{
+	while((USART1->ISR & USART_ISR_TC) != USART_ISR_TC){}
+	while((USART1->ISR & USART_ISR_TXE_TXFNF) != USART_ISR_TXE_TXFNF) {}
+	USART1->TDR = message_byte;
+}
 
 
 uint32_t full_device_setup(void){
@@ -446,22 +483,14 @@ uint32_t full_device_setup(void){
 
 	timers_setup();
 
-
 	//*** Enable all needed peripherals ***//
-	RCC->APBENR1 |= RCC_APBENR1_TIM2EN | RCC_APBENR1_TIM3EN | RCC_APBENR1_SPI2EN;
-	RCC->APBENR2 |= RCC_APBENR2_TIM1EN |RCC_APBENR2_SPI1EN | RCC_APBENR2_USART1EN | RCC_APBENR2_TIM14EN | RCC_APBENR2_TIM15EN | RCC_APBENR2_ADCEN; //	ADC??
-
-
-	//*** USART1 setup ***//
-	USART1->BRR = 24000000/19200; //baud rate is 19200
-	USART1->CR1 |= USART_CR1_UE;
-	USART1->CR1 |= USART_CR1_TE | USART_CR1_RE;
+	RCC->APBENR1 |= RCC_APBENR1_SPI2EN;
+	RCC->APBENR2 |= RCC_APBENR2_SPI1EN | RCC_APBENR2_USART1EN | RCC_APBENR2_ADCEN; //	ADC??
 
 	//*** SPI1 setup ***//
 	SPI1->CR1 |= 0x0314; // set as SPI-master, disable NSS-pin
 	SPI1->CR2 |= 0x1000; //
 	SPI1->CR1 |= 0x0040; // turn on SPI
-
 
 	// SPI2 setup //
 	SPI2->CR1 |= 0x0314; // set as SPI-master, disable NSS-pin
