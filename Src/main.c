@@ -33,22 +33,12 @@
  */
 
 
-
-
-
-uint32_t iterator = 0;
-
-
 int main(void)
 {
+	full_device_setup();
 
-	system_clock_setup();
 
-	gpio_setup();
-
-	timers_setup();
-
-//	full_device_setup();
+//	TIM1->CCR4 = PWM_PRECISION/2;
 
 	while(1){
 
@@ -58,5 +48,12 @@ int main(void)
 	}
 }
 
+/*
+	@brief	System counter interrupt handler - place for all control logic code
+ */
+void SysTick_Handler()
+{
+	__NOP();
+}
 
 

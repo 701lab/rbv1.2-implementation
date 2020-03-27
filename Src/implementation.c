@@ -45,7 +45,7 @@
 */
 
 /*!
-	@brief 	sets up SYSCLK to CLOCK_SPEED with taking into account problems with different sources
+	@brief 	sets up SYSCLK to SYSCLK_FREQUENCY with taking into account problems with different sources
 
 	Tries to start up HSE. Calls PLL startup functions with HSE as a source if it started correctly and HSI otherwise.
 
@@ -62,13 +62,11 @@
 uint32_t system_clock_setup(void)
 {
 
-	/* Flash read access latency from Clock_speed. See RM chapter 3.3.4 */
-	#if	( CLOCK_SPEED > 48000000 )
+	/* Flash read access latency from SYSCLK_FREQUENCY. See RM chapter 3.3.4 */
+	#if	( SYSCLK_FREQUENCY > 48000000 )
+		FLASH->ACR |= FLASH_ACR_LATENCY_1; 	// 0x02 - 2 clock cycles latency
 
-		FLASH->ACR |= FLASH_ACR_LATENCY_1; // 0x02 - 2 clock cycles latency
-
-	#elif ( CLOCK_SPEED > 24000000 )
-
+	#elif ( SYSCLK_FREQUENCY > 24000000 )
 		FLASH->ACR |= FLASH_ACR_LATENCY_0;	// 0x01 - 1 clock cycle latency
 
 	#endif
@@ -92,8 +90,9 @@ uint32_t system_clock_setup(void)
 			}
 			else
 			{
-				RCC->CR &= ~RCC_CR_HSEON;		// Stop HSE so it won't consume power.
-				return pll_setup_return_value;	// PLL fails, so HSI is a clock source. PLL error code either 1 or 2
+				RCC->CR &= ~RCC_CR_HSEON;				// Stop HSE so it won't consume power.
+				FLASH->ACR &= ~FLASH_ACR_LATENCY_Msk;	// Reset FLASH latency because HSI is 16 Mhz
+				return pll_setup_return_value;			// PLL fails, so HSI is a clock source. PLL error code either 1 or 2
 			}
 		}
 	}
@@ -113,9 +112,7 @@ uint32_t system_clock_setup(void)
 /*!
 	@brief	starts PLL. Takes into account HSE status
 
-	Tries to start PLL with given CLOCK_SPEED.
-
-	@param[in] is_HSE_clock_source - status of HSE. If HSE is ok uses it as a clock source, uses HSI otherwise.
+	@param[in] is_HSE_clock_source - status of HSE. If HSE is ok uses it as PLL clock source, uses HSI otherwise.
 
 	@return		Mistake code: 0 - if everything s ok, 1 - if PLL start fail, 2 - if PLL fails to start as a clock source
 
@@ -133,13 +130,13 @@ uint32_t system_clock_setup(void)
 
 		PLLR = 4
 		PLLM = 1
-		PLLN = CLOCK_SPEED / 2000000
+		PLLN = SYSCLK_FREQUENCY / 2000000
 
 					oscillator_frequensy * PLLN       8 * PLLN
 		SYSCLK =  ------------------------------- = ------------
 						   PLLM * PLLR				   1 * 4
 
-		PLLN can be changed from 8 to 86, but only 8 to 43 are allowed, so we can have any frequency from 2 to 64 Mhz with a step of 2 Mhz and change in only one variable
+		PLLN can be changed from 8 to 86, but only 8 to 43 are allowed, so we can have any frequency from 16 to 64 Mhz with a step of 2 Mhz and change in only one variable
 
 	> When using 16 Mhz HSI (internal oscillator) as a clock sours for PLL (critical - when HSE can't be enabled)
 
@@ -147,13 +144,13 @@ uint32_t system_clock_setup(void)
 
 		PLLR = 4
 		PLLM = 2
-		PLLN = CLOCK_SPEED / 2000000
+		PLLN = SYSCLK_FREQUENCY / 2000000
 
 					oscillator_frequensy * PLLN       16 * PLLN
 		SYSCLK =  ------------------------------- = ------------
 						   PLLM * PLLR				   2 * 4
 
-		PLLN can be changed from 8 to 86, but only 8 to 43 are allowed, so we can have any frequency from 2 to 64 Mhz with a step of 2 Mhz and change in only one variable
+		PLLN can be changed from 8 to 86, but only 8 to 43 are allowed, so we can have any frequency from 16 to 64 Mhz with a step of 2 Mhz and change in only one variable
 
 	@note 	If PLL is not working (i don't know if it is really possible) HSI is used as a clock source no matter of HSE status.
 
@@ -205,8 +202,9 @@ uint32_t pll_setup(uint32_t is_HSE_clock_source)
 		++safety_delay_counter;
 		if ( safety_delay_counter > DUMMY_DELAY_VALUE )
 		{
-			RCC->CFGR &= ~RCC_CFGR_SW_Msk;	// Use HSI as a clock source
-			return 2;						// PLL as clock source startup fail code
+			FLASH->ACR &= ~FLASH_ACR_LATENCY_Msk;	// Reset FLASH latency because HSI is 16 Mhz
+			RCC->CFGR &= ~RCC_CFGR_SW_Msk;			// Use HSI as a clock source
+			return 2;								// PLL as clock source startup fail code
 		}
 	}
 
@@ -214,7 +212,7 @@ uint32_t pll_setup(uint32_t is_HSE_clock_source)
 }
 
 /*
-	@brief	Interrupt handler. Called when HSE fails. Tries to start PLL with HSI as a source
+	@brief	Non-maskable interrupt handler. Called when HSE fails. Tries to start PLL with HSI as a source
 
 	@Documentation:
 		> STM32G0x1 reference manual chapter 5 (RCC) - clock security system (5.2.8).
@@ -259,27 +257,99 @@ void gpio_setup(void)
 	RCC->IOPENR |= RCC_IOPENR_GPIOAEN | RCC_IOPENR_GPIOBEN | RCC_IOPENR_GPIOCEN | RCC_IOPENR_GPIODEN;
 
 	//*** Port A full GPIO setup ***//
-	GPIOA->MODER &=~0xC0FFFC03;
-	GPIOA->MODER |= 0x80AAA803;
-	GPIOA->OSPEEDR |= 0x00AAA800; 	// High speed for PWM and SPI outputs for better transient
-	GPIOA->AFR[1] |= 0x20002222;
+	GPIOA->MODER &= ~((GPIO_MODER_MSK << GPIO_MODER_MODE0_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE5_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE6_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE7_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE8_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE9_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE10_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE11_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE15_Pos));		// Equal to GPIOA->MODER &= ~0xC0FFFC03;
+
+	GPIOA->MODER |= (GPIO_ANALOG_IN << GPIO_MODER_MODE0_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE5_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE6_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE7_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE8_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE9_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE10_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE11_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE15_Pos);		// Equal to GPIOA->MODER |= 0x80AAA803;
+
+	GPIOA->OSPEEDR |= (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED5_Pos)
+			| (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED6_Pos)
+			| (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED7_Pos)
+			| (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED8_Pos)
+			| (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED9_Pos)
+			| (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED10_Pos)
+			| (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED11_Pos);	// Equal to GPIOA->OSPEEDR |= 0x00AAA800;
+
+	GPIOA->AFR[1] |= (ALTERNATE_FUNCTION_2 << GPIO_AFRH_AFSEL8_Pos)
+			| (ALTERNATE_FUNCTION_2 << GPIO_AFRH_AFSEL9_Pos)
+			| (ALTERNATE_FUNCTION_2 << GPIO_AFRH_AFSEL10_Pos)
+			| (ALTERNATE_FUNCTION_2 << GPIO_AFRH_AFSEL11_Pos)
+			| (ALTERNATE_FUNCTION_2 << GPIO_AFRH_AFSEL15_Pos);	// Equal to GPIOA->AFR[1] |= 0x20002222
 
 	//*** Port B full GPIO setup ***//
-	GPIOB->MODER &= ~0xFFF0FFFF;
-	GPIOB->MODER |= 0xA900AA85;
-	GPIOB->OSPEEDR |= 0xA800A000; 	// High speed for SPI and UART outputs
-	GPIOB->AFR[0] |= 0x00112000;
+	GPIOB->MODER &= ~((GPIO_MODER_MSK << GPIO_MODER_MODE0_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE1_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE2_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE3_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE4_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE5_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE6_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE7_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE10_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE11_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE12_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE13_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE14_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE15_Pos));		// GPIOB->MODER &= ~0xFFF0FFFF;
+
+	GPIOB->MODER |= (GPIO_DIGITAL_OUT << GPIO_MODER_MODE0_Pos)
+			| (GPIO_DIGITAL_OUT << GPIO_MODER_MODE1_Pos)
+			| (GPIO_DIGITAL_IN << GPIO_MODER_MODE2_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE3_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE4_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE5_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE6_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE7_Pos)
+			| (GPIO_DIGITAL_IN<< GPIO_MODER_MODE10_Pos)
+			| (GPIO_DIGITAL_IN << GPIO_MODER_MODE11_Pos)
+			| (GPIO_DIGITAL_OUT << GPIO_MODER_MODE12_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE13_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE14_Pos)
+			| (GPIO_ALTERNATE << GPIO_MODER_MODE15_Pos);		// Equals to GPIOB->MODER |= 0xA900AA85;
+
+	GPIOB->OSPEEDR |= (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED6_Pos)
+			| (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED7_Pos)
+			| (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED13_Pos)
+			| (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED14_Pos)
+			| (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED15_Pos);	// Equals to GPIOB->OSPEEDR |= 0xA800A000;
+
+	GPIOB->AFR[0] |= (ALTERNATE_FUNCTION_2 << GPIO_AFRH_AFSEL11_Pos)
+			| (ALTERNATE_FUNCTION_1 << GPIO_AFRH_AFSEL12_Pos)
+			| (ALTERNATE_FUNCTION_1 << GPIO_AFRH_AFSEL13_Pos);	// Equals to GPIOB->AFR[0] |= 0x00112000;
 
 	//*** Port C full GPIO setup ***//
-	GPIOC->MODER &=~0xF000;
-	GPIOC->MODER |= 0x1000;
+	GPIOC->MODER &= ~((GPIO_MODER_MSK << GPIO_MODER_MODE6_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE7_Pos));		// Equal to GPIOC->MODER &=~0xF000;
+
+	GPIOC->MODER |= (GPIO_DIGITAL_OUT << GPIO_MODER_MODE6_Pos)
+			| (GPIO_DIGITAL_IN << GPIO_MODER_MODE7_Pos);		// Equal to GPIOC->MODER |= 0x1000;
 
 	//*** Port D full GPIO setup ***//
-	GPIOD->MODER &= ~0x000000FF;
-	GPIOD->MODER |= 0x00000055;
+	GPIOD->MODER &= ~((GPIO_MODER_MSK << GPIO_MODER_MODE0_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE1_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE2_Pos)
+			| (GPIO_MODER_MSK << GPIO_MODER_MODE3_Pos));		// Equal to GPIOD->MODER &= ~0x000000FF;
+
+	GPIOD->MODER |= (GPIO_DIGITAL_OUT << GPIO_MODER_MODE0_Pos)
+			| (GPIO_DIGITAL_OUT << GPIO_MODER_MODE1_Pos)
+			| (GPIO_DIGITAL_OUT << GPIO_MODER_MODE2_Pos)
+			| (GPIO_DIGITAL_OUT << GPIO_MODER_MODE3_Pos);		// Equal to GPIOD->MODER |= 0x00000055;
 }
-
-
 
 /*
 	@brief	Sets up all used on the board timers and enables desired interrupts
@@ -287,7 +357,7 @@ void gpio_setup(void)
 	@Documentation:
 		> STM32G0x1 reference manual chapter 20 (TIM1) - TIM1 setup information;
 		> STM32G0x1 reference manual chapter 21 (TIM2/TIM3) - TIM2 and TIM3 setup information;
-		> STM32G0x1 reference manual chapter 21 (TIM2/TIM3) - TIM2 and TIM3 setup information;
+	 	> Cortex-M0+ programming manual for stm32 chapter 4 - SysTick timer (STK) (4.4);
 
 	Timer channels allocations with respect to function.
 
@@ -306,11 +376,7 @@ void gpio_setup(void)
 	TIM3			| Motor2 encoder pulses counter
 	TIM3 CH1		| Motor2 encoder phase A counter
 	TIM3 CH2		| Motor2 encoder phase B counter
-	--------------- | ----------------------------------------------------
-	TIM14			| ??
-	--------------- | ----------------------------------------------------
-	TIM15 			| ??
-
+					|
  */
 void timers_setup(void)
 {
@@ -319,26 +385,26 @@ void timers_setup(void)
 //	RCC->APBENR2 |= RCC_APBENR2_TIM1EN | RCC_APBENR2_TIM14EN | RCC_APBENR2_TIM15EN;
 
 	//*** TIM1 PWM setup ***//
-	TIM1->PSC = 0; 				// Timer speed = bass speed
-	TIM1->ARR = MAX_PWM_WIDTH; 	//
-	TIM1->CCMR1 |= 0x6868; //PWM mode
-	TIM1->CCMR2 |= 0x6868;
-	TIM1->CCER |= 0x1111;
-	TIM1->CR1 |= 0x80;
-	TIM1->BDTR |= TIM_BDTR_MOE;
-	TIM1->EGR |= 0x01; // update event
+	TIM1->PSC = 0; 				// Timer speed = bus speed
+	TIM1->ARR = PWM_PRECISION;
+	TIM1->CCMR1 |= 0x6868; 	// PWM mode 1 enable and output compare preload enable on channels 1 and 2
+	TIM1->CCMR2 |= 0x6868;	// PWM mode 1 enable and output compare preload enable on channels 3 and 4
+	TIM1->CCER |= 0x1111;	// Enable CH1-4
+	TIM1->CR1 |= TIM_CR1_ARPE;	// Enable Auto reload preload
+	TIM1->BDTR |= TIM_BDTR_MOE;	// Main output enable
 	TIM1->CR1 |= TIM_CR1_CEN; // Enable timer
-//	TIM1->CCR1 = MAX_PWM_WIDTH/2;
-//	TIM1->CCR2 = MAX_PWM_WIDTH;
-//	TIM1->CCR3 = MAX_PWM_WIDTH;
-	TIM1->CCR4 = MAX_PWM_WIDTH/2;
+
+//	TIM1->CCR1 = PWM_PRECISION;
+//	TIM1->CCR2 = PWM_PRECISION;
+//	TIM1->CCR3 = PWM_PRECISION;
+//	TIM1->CCR4 = PWM_PRECISION;
 
 	//*** Timer2 encoder setup ***//
 	TIM2->ARR = 65535; 		// 2^16-1 - maximum value for this timer. No prescaler, so timer is working with max speed
 	TIM2->CCER |= 0x02;		// Should be uncommented if encoder direction reversal is needed
 	TIM2->SMCR |= 0x03;		// Encoder mode setup
 	TIM2->CNT = 0;			// Clear counter before start
-	TIM2->CR1 |= TIM_CR1_CEN; //TIM_CR1_CEN;
+	TIM2->CR1 |= TIM_CR1_CEN;
 
 	//*** Timer3 encoder setup ***//
 	TIM3->ARR = 65535; 		// 2^16-1 - maximum value for this timer. No prescaler, so timer is working with max speed
@@ -361,11 +427,11 @@ void timers_setup(void)
 //		TIM15->CNT = 0;			// Clear counter before start
 //		TIM15->CR1 |= TIM_CR1_CEN;
 
-//		//*** System timer setup ***//
-//		SysTick->LOAD = 14999; // 200 times per second at 24 MHZ
-//		SysTick->VAL = 0;
-//		NVIC_EnableIRQ(SysTick_IRQn);
-//		SysTick->CTRL |= 0x03; // Starts SysTick, enables interrupts
+	//*** System timer setup ***//
+	SysTick->LOAD = SYSCLK_FREQUENCY / (8 * SYSTICK_FREQUENCY) - 1;
+	SysTick->VAL = 0;
+	NVIC_EnableIRQ(SysTick_IRQn);
+	SysTick->CTRL |= 0x03; // Start SysTick, enable interrupt
 }
 
 
@@ -374,75 +440,17 @@ void timers_setup(void)
 
 uint32_t full_device_setup(void){
 
+	system_clock_setup();
+
+	gpio_setup();
+
+	timers_setup();
 
 
 	//*** Enable all needed peripherals ***//
-	RCC->IOPENR |= RCC_IOPENR_GPIOAEN | RCC_IOPENR_GPIOBEN | RCC_IOPENR_GPIOCEN | RCC_IOPENR_GPIODEN;
 	RCC->APBENR1 |= RCC_APBENR1_TIM2EN | RCC_APBENR1_TIM3EN | RCC_APBENR1_SPI2EN;
 	RCC->APBENR2 |= RCC_APBENR2_TIM1EN |RCC_APBENR2_SPI1EN | RCC_APBENR2_USART1EN | RCC_APBENR2_TIM14EN | RCC_APBENR2_TIM15EN | RCC_APBENR2_ADCEN; //	ADC??
 
-//	//*** Port A full GPIO setup ***//
-//	GPIOA->MODER &=~0xC0FFFC03;
-//	GPIOA->MODER |= 0x80AAA803;
-//	GPIOA->OSPEEDR |= 0x00AAA800; 	// High speed for PWM and SPI outputs for better transient
-//	GPIOA->AFR[1] |= 0x20002222;
-//
-//	//*** Port B full GPIO setup ***//
-//	GPIOB->MODER &= ~0xFFF0FFFF;
-//	GPIOB->MODER |= 0xA900AA85;
-//	GPIOB->OSPEEDR |= 0xA800A000; 	// High speed for SPI and UART outputs
-//	GPIOB->AFR[0] |= 0x00112000;
-//
-//	//*** Port C full GPIO setup ***//
-//	GPIOC->MODER &=~0xF000;
-//	GPIOC->MODER |= 0x1000;
-//
-//	//*** Port D full GPIO setup ***//
-//	GPIOD->MODER &= ~0x000000FF;
-//	GPIOD->MODER |= 0x00000055;
-
-//	//*** TIM1 PWM setup ***//
-//	TIM1->PSC = 0; //24Mhz
-//	TIM1->ARR = MAX_PWM_WIDTH; // 20.000 HZ PWM
-//	TIM1->CCMR1 |= 0x6868; //PWM mode
-//	TIM1->CCMR2 |= 0x6868;
-//	TIM1->CCER |= 0x1111;
-//	TIM1->CR1 |= 0x80;
-//	TIM1->BDTR  |=  TIM_BDTR_MOE;
-//	TIM1->EGR |= 0x01; // update event
-//	TIM1->CR1 |= TIM_CR1_CEN; // Enable timer
-//	TIM1->CCR1 = MAX_PWM_WIDTH;
-//	TIM1->CCR2 = MAX_PWM_WIDTH;
-//	TIM1->CCR3 = MAX_PWM_WIDTH;
-//	TIM1->CCR4 = MAX_PWM_WIDTH;
-//
-//	//*** Timer2 encoder setup ***//
-//	TIM2->ARR = 65535; 		// 2^16-1 - maximum value for this timer. No prescaler, so timer is working with max speed
-//	TIM2->CCER |= 0x02;		// Should be uncommented if encoder direction reversal is needed
-//	TIM2->SMCR |= 0x03;		// Encoder mode setup
-//	TIM2->CNT = 0;			// Clear counter before start
-//	TIM2->CR1 |= TIM_CR1_CEN; //TIM_CR1_CEN;
-//
-//	//*** Timer3 encoder setup ***//
-//	TIM3->ARR = 65535; 		// 2^16-1 - maximum value for this timer. No prescaler, so timer is working with max speed
-////	TIM3->CCER |= 0x02;		// Should be uncommented if encoder direction reversal is needed
-//	TIM3->SMCR |= 0x03;		// Encoder mode setup
-//	TIM3->CNT = 0;			// Clear counter before start
-//	TIM3->CR1 |= TIM_CR1_CEN;
-//
-//	//*** TIM14 test setup ***//
-//	// Used to count program time for mistakes log
-//	TIM14->PSC |= 39999; 	// 24 Mhz clock -> 600 pulses per second into CNT
-//	TIM14->ARR = 65535; 	// 2^16-1 - maximum value for this timer, so with prescaler it will be around 1 min 47 seconds of time stamps
-//	TIM14->CNT = 0;			// Clear counter before start
-//	TIM14->CR1 |= TIM_CR1_CEN;
-//
-//	//*** TIM15 setup ***//
-//	// Used to count millisecond for speed calculations
-//	TIM15->PSC |= 47; 	// 24 Mhz clock -> 500.000 pulses per second into CNT
-//	TIM15->ARR = 65535; 	// 2^16-1 - maximum value for this timer, so program should have minimum 16 speed calculations per second not to loose data
-//	TIM15->CNT = 0;			// Clear counter before start
-//	TIM15->CR1 |= TIM_CR1_CEN;
 
 	//*** USART1 setup ***//
 	USART1->BRR = 24000000/19200; //baud rate is 19200
