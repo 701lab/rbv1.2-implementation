@@ -2,6 +2,7 @@
 #define IMPLEMENTATION_H_
 
 #include "stm32g071xx.h"
+#include "mistakes_codes.h"
 
 //*************************************//
 //****** User-adjustable defines ******//
@@ -15,7 +16,7 @@
 	@note 	Only frequencies multiple to 2Mhz are allowed and PLLN is has a minimum value of 8.
 	 	 	Allowed frequencies are: 16000000, 18000000 ... 62000000, 64000000 Hz.
  */
-#define SYSCLK_FREQUENCY 			24000000 // Hz = 24 Mhz
+#define SYSCLK_FREQUENCY 			48000000 // Hz = 24 Mhz
 
 /*
 	@brief 	PWM frequency for motor control in Hz and related PWM precision
@@ -38,16 +39,38 @@
 
 //****** End of User-adjustable defines ******//
 
+//*** Mistakes log definition ***//
+/*
+ 	Пока я тут не начал разводить мемуары коментариев, которые потом приедтся переписывать запишу то, как надо попробовать реализовать
+
+	@brief Mistakes log is used to collect mistakes codes during runtime
+
+	Log can be sent by any available interface during runtime to debug the system.
+
+	@note To provide a consistency log should be implemented in the main.c file and is used only there.
+
+	TODO: @idea	It will be good to have EEPROM on every device so we can store mistakes log there
+
+	TODO: It will be good to implement some type of black box: way to permanently store log with system parameters for the last couple of hours at least: EEPROM won't suffice
+ */
+#define MISTAKES_LOG_SIZE			50
+
+
+
+
 
 //****************************//
 //****** User functions ******//
 //****************************//
-// @brief	Can be called in the code by the programmer while developing applications.
+// @brief Can be called in the code by the programmer while developing applications.
+
+// @brief Makes log entry with given mistake code at current time
+void add_to_mistakes_log(uint32_t mistake_code);
 
 
 
-// @brief	Sets up all desired device peripherals
-uint32_t full_device_setup(void);
+// @brief Sets up all desired device peripherals
+void full_device_setup(void);
 
 /*
 	@brief	Enables UART 1 with given baud rate with TX and RX enable
@@ -64,14 +87,24 @@ uint32_t full_device_setup(void);
  */
 void basic_uart1_setup(const uint32_t transmission_speed_in_bauds);
 
+
+void basic_spi1_setup(uint32_t transmittion_speed_in_hz);
+
+void basic_spi2_setup(uint32_t transmittion_speed_in_hz);
+
+
+
 // @note Not implemented yet !!!
 //void advanced_uart1_setup(const uint32_t transmission_speed_in_bauds);
 
-// @brief Sends one raw byte
+// @brief	Sends given byte when TX buffer is empty
 void uart1_send_byte(const uint8_t message_byte);
 
 // @note Not implemented yet !!!
 //void uart1_send_array(const uint8_t byte_message);
+
+
+
 
 
 uint32_t leds_diagnostic(void);
@@ -82,7 +115,10 @@ uint32_t imu_diagnostic(void);
 
 uint32_t radio_module_diagnostic(void);
 
-
+//**************************************//
+//****** User-adjustable typedefs ******//
+//**************************************//
+// @brief All needed typdefs should be implemented here
 
 
 //********************************//
@@ -119,17 +155,24 @@ uint32_t interrupt_setup(void);
 
 
 
+/*
+	@brief TIM14 overflow interrupt handler - counts minutes from enable of mistakes log.
+ */
+void TIM14_IRQHandler();
+
+
 
 //*** Blinks led if
 
 void blink(void);
 
-void delay_in_milliseconds(const uint32_t * time_in_millisecond);
+void delay_in_milliseconds(const uint32_t time_in_millisecond);
 
 void delay(const uint32_t time_in_milliseconds);
 
-
-/*** Non user-adjustable defines  ***/
+//****************************************//
+//****** on user-adjustable defines ******//
+//****************************************//
 /*
 	@brief All defines that should not be changed contains here. Also all checks for #define mistakes happen here redefines happen here so they will be at top of any listing and won't distract programmers.
  */
@@ -142,6 +185,45 @@ void delay(const uint32_t time_in_milliseconds);
 	#error Clock speed define is less then minimum value of 16 Mhz
 
 #endif
+
+
+// @brief Mistakes log entry form
+typedef struct{
+	uint32_t mistake_code;
+	uint32_t mistake_time_in_seconds;
+	uint32_t mistake_time_in_minuts;
+} mistake;
+
+/*** Global variables declaration ***/
+/*
+	@brief Declares global variables in all files that include this one.
+
+	 If there is VAR_DECLS define in file - declares and initialize variables (should be only one such file).
+	 If there is no VAR_DECLS define in file - declares all variables as extern and doesn't initialize them.
+ */
+#ifndef VAR_DEFS
+#define VAR_DEFS 1		// Make sure this file is included only once for each .c file
+
+#ifndef VAR_DECLS		// There should be one file with defined VAR_DECLS. So there will be only one file with variables initialization.
+# define _DECL extern	// If the .c file doesn't contains VAR_DECLS definition, all global variables will be declared with extern prefix and without initialization
+# define _INIT(x)
+#else
+# define _DECL			// If there is VAR_DECLS definition in .c file, all global variables will be declared without extern prefix
+# define _INIT(x)  = x	// and will be initialized with predefined values x
+#endif /* VAR_DECLS */
+
+/* Global variables should be declared as follows: "_DECL [standard variable declaration] _INIT(x);", where x is initialization value.
+ * If there is no need for variables initialization, declaration can look as: "_DECL [standard variable declaration];" */
+
+///*** Mistakes log variables ***//
+//	@brief This log is used to accumulate mistakes, that occurred during runtime, so it will be possible to debug system with debugger.
+_DECL mistake mistakes_log[MISTAKES_LOG_SIZE];
+_DECL uint32_t mistakes_log_pointer _INIT(0);
+_DECL uint32_t critical_mistake_detected _INIT(0);		/* will be 1 - if there were a critical mistake. System should be stopped. All performance critical objects should be returned to safe state and be deactivated */
+_DECL uint32_t time_from_log_enable_in_minutes _INIT(0);
+
+#endif /* VAR_DEFS */
+/******************************************/
 
 
 //*** GPIO setup defines ***//
@@ -171,6 +253,5 @@ void delay(const uint32_t time_in_milliseconds);
 
 /* Completely random value to determine the waiting-state length */
 #define DUMMY_DELAY_VALUE 10000
-
 
 #endif /* IMPLEMENTATION_H_ */

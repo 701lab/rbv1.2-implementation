@@ -1,4 +1,7 @@
 
+// For global variables declareation
+#define VAR_DECLS
+
 #include "implementation.h"
 
 
@@ -37,16 +40,24 @@ int main(void)
 {
 	full_device_setup();
 
-	basic_uart1_setup(19200);
-
-
 //	TIM1->CCR4 = PWM_PRECISION/2;
+
+	basic_spi1_setup(20000000);
+	blink();
+	basic_spi1_setup(20000000);
+	blink();
+	basic_spi1_setup(20000000);
+	blink();
+	basic_spi1_setup(20000000);
+	blink();
+	basic_spi1_setup(20000000);
+	blink();
+	basic_spi1_setup(20000000);
 
 	while(1){
 
 		GPIOD->ODR ^= 0x03;
 		blink();
-		uart1_send_byte(0x68);
 	}
 }
 
@@ -57,5 +68,6 @@ void SysTick_Handler()
 {
 	__NOP();
 }
+
 
 

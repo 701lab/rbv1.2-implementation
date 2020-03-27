@@ -44,6 +44,41 @@
 
 */
 
+/*
+	@brief Makes log entry with given mistake code at current time
+
+	@param[in] target_log - pointer to mistakes log where to write
+
+	@param[in] entry_position_in_log -
+ */
+void add_to_mistakes_log(uint32_t mistake_code)
+{
+	mistakes_log[mistakes_log_pointer].mistake_code = mistake_code;
+	mistakes_log[mistakes_log_pointer].mistake_time_in_minuts = time_from_log_enable_in_minutes;
+	mistakes_log[mistakes_log_pointer].mistake_time_in_seconds = TIM14->CNT;
+	++mistakes_log_pointer;
+	if (mistakes_log_pointer == MISTAKES_LOG_SIZE)
+	{
+		mistakes_log_pointer = 0;
+	}
+}
+
+/*
+	@brief TIM14 overflow interrupt handler - counts minutes from enable of mistakes log.
+
+	@note If device have EEprom - saves mistake log into it every minute.
+ */
+void TIM14_IRQHandler()
+{
+	TIM14->SR &= ~TIM_SR_UIF;
+
+	++time_from_log_enable_in_minutes;
+
+	// Place to put code to write into EEPROM (for development of future devices)
+}
+
+
+
 /*!
 	@brief 	sets up SYSCLK to SYSCLK_FREQUENCY with taking into account problems with different sources
 
@@ -92,12 +127,13 @@ uint32_t system_clock_setup(void)
 			{
 				RCC->CR &= ~RCC_CR_HSEON;				// Stop HSE so it won't consume power.
 				FLASH->ACR &= ~FLASH_ACR_LATENCY_Msk;	// Reset FLASH latency because HSI is 16 Mhz
-				return pll_setup_return_value;			// PLL fails, so HSI is a clock source. PLL error code either 1 or 2
+				return PLL_FAILED;						// PLL fails, so HSI is a clock source
 			}
 		}
 	}
 
 	RCC->CR &= ~RCC_CR_HSEON;	// Stop HSE so it won't consume power.
+	add_to_mistakes_log(HSE_FAILED_TO_START);
 
 	const uint32_t pll_setup_return_value = pll_setup(HSE_IS_NOT_OK);
 
@@ -187,6 +223,7 @@ uint32_t pll_setup(uint32_t is_HSE_clock_source)
 		if ( safety_delay_counter > DUMMY_DELAY_VALUE )
 		{
 			RCC->CR &= ~RCC_CR_PLLON;	// Stop PLL so it won't consume power.
+			add_to_mistakes_log(PLL_FAILED);
 			return 1;					// PLL startup fail code
 		}
 	}
@@ -204,7 +241,8 @@ uint32_t pll_setup(uint32_t is_HSE_clock_source)
 		{
 			FLASH->ACR &= ~FLASH_ACR_LATENCY_Msk;	// Reset FLASH latency because HSI is 16 Mhz
 			RCC->CFGR &= ~RCC_CFGR_SW_Msk;			// Use HSI as a clock source
-			return 2;								// PLL as clock source startup fail code
+			add_to_mistakes_log(PLL_FAILED);
+			return 1;								// PLL as clock source startup fail code
 		}
 	}
 
@@ -225,6 +263,8 @@ void NMI_Handler()
 	// Clear the clock security system interrupt flag
 	RCC->CICR |= RCC_CICR_CSSC;
 
+	add_to_mistakes_log(HSE_FAILED_WHILE_RUNNING);
+
 	// Wait until PLL is fully stopped
 	while ( (RCC->CR & RCC_CR_PLLRDY) == RCC_CR_PLLRDY ){}
 
@@ -233,12 +273,8 @@ void NMI_Handler()
 
 	if (pll_setup_return_value)
 	{
-		// PLL setup fail code handling
+		add_to_mistakes_log(PLL_FAILED);
 	}
-		// Else PLL started correctly
-
-	// The place for error handling capabilities. The program should log that HSE problem occurred
-
 }
 
 /*
@@ -322,6 +358,7 @@ void gpio_setup(void)
 			| (GPIO_ALTERNATE << GPIO_MODER_MODE14_Pos)
 			| (GPIO_ALTERNATE << GPIO_MODER_MODE15_Pos);		// Equals to GPIOB->MODER |= 0xA900AA85;
 
+
 	GPIOB->OSPEEDR |= (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED6_Pos)
 			| (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED7_Pos)
 			| (GPIO_OSPEED_HIGH << GPIO_OSPEEDR_OSPEED13_Pos)
@@ -351,13 +388,14 @@ void gpio_setup(void)
 			| (GPIO_DIGITAL_OUT << GPIO_MODER_MODE3_Pos);		// Equal to GPIOD->MODER |= 0x00000055;
 }
 
-/*
+/*!
 	@brief	Sets up all used on the board timers and enables desired interrupts
 
 	@Documentation:
 		> STM32G0x1 reference manual chapter 5 (RCC) - all information about peripheral locations and enabling;
 		> STM32G0x1 reference manual chapter 20 (TIM1) - TIM1 setup information;
 		> STM32G0x1 reference manual chapter 21 (TIM2/TIM3) - TIM2 and TIM3 setup information;
+		> STM32G0x1 reference manual chapter 23 (TIM14) - TIM14 setup information;
 	 	> Cortex-M0+ programming manual for stm32 chapter 4 - SysTick timer (STK)(4.4).
 
 	Timer channels allocations with respect to function.
@@ -377,13 +415,20 @@ void gpio_setup(void)
 	TIM3			| Motor2 encoder pulses counter
 	TIM3 CH1		| Motor2 encoder phase A counter
 	TIM3 CH2		| Motor2 encoder phase B counter
+	--------------- | ----------------------------------------------------
+	TIM14			| Counts time in 0.125 millisecond steps for debug log.
+					| Resets exactly every minute
 					|
+
+	@calculation
+
+	TIM14_prescaler = -----------------
  */
 void timers_setup(void)
 {
 	//*** Timers peripheral clock enable ***//
 	RCC->APBENR1 |= RCC_APBENR1_TIM2EN | RCC_APBENR1_TIM3EN;
-	RCC->APBENR2 |= RCC_APBENR2_TIM1EN;
+	RCC->APBENR2 |= RCC_APBENR2_TIM1EN | RCC_APBENR2_TIM14EN;
 //	RCC->APBENR2 |= RCC_APBENR2_TIM1EN | RCC_APBENR2_TIM14EN | RCC_APBENR2_TIM15EN;
 
 	//*** TIM1 PWM setup ***//
@@ -415,12 +460,13 @@ void timers_setup(void)
 	TIM3->CNT = 0;			// Clear counter before start
 	TIM3->CR1 |= TIM_CR1_CEN;
 
-//		//*** TIM14 test setup ***//
-//		// Used to count program time for mistakes log
-//		TIM14->PSC |= 39999; 	// 24 Mhz clock -> 600 pulses per second into CNT
-//		TIM14->ARR = 65535; 	// 2^16-1 - maximum value for this timer, so with prescaler it will be around 1 min 47 seconds of time stamps
-//		TIM14->CNT = 0;			// Clear counter before start
-//		TIM14->CR1 |= TIM_CR1_CEN;
+	//*** TIM14 test setup ***//
+	TIM14->PSC |= (uint32_t)(SYSCLK_FREQUENCY / 28800 - 1); //
+	TIM14->ARR = 28799; 	// 60 second * 60 millisecond * 8 - 1 to get 0.125 milliseconds step
+	TIM14->CNT = 0;			// Clear counter before start
+	TIM14->DIER |= TIM_DIER_UIE;
+	NVIC_EnableIRQ(TIM14_IRQn);
+	TIM14->CR1 |= TIM_CR1_CEN;
 //
 //		//*** TIM15 setup ***//
 //		// Used to count millisecond for speed calculations
@@ -436,7 +482,7 @@ void timers_setup(void)
 	SysTick->CTRL |= 0x03; // Start SysTick, enable interrupt
 }
 
-/*
+/*!
 	@brief	Enable UART transmission and reception with given baud rate
 
 	@param[in] transmission_speed_in_bauds UART desired baud rate
@@ -455,7 +501,6 @@ void timers_setup(void)
 		> STM32G0x1 reference manual chapter 5 (RCC) - all information about peripheral locations and enabling;
 		> STM32G0x1 reference manual chapter 32 (USART/UART) - UART setup information.
  */
-
 void basic_uart1_setup(const uint32_t transmission_speed_in_bauds)
 {
 	RCC->APBENR2 |= RCC_APBENR2_USART1EN;
@@ -466,7 +511,7 @@ void basic_uart1_setup(const uint32_t transmission_speed_in_bauds)
 }
 
 
-
+// @brief Sends given byte when TX buffer is empty
 void uart1_send_byte(const uint8_t message_byte)
 {
 	while((USART1->ISR & USART_ISR_TC) != USART_ISR_TC){}
@@ -474,8 +519,77 @@ void uart1_send_byte(const uint8_t message_byte)
 	USART1->TDR = message_byte;
 }
 
+/*
+	@brief Enable SPI1 transmission
 
-uint32_t full_device_setup(void){
+	@param[in] transmittion_speed_in_hz frequency witch will be used as a reference for set up (rounding down)
+
+	@documentation
+		> STM32G0x1 reference manual chapter 5 (RCC) - all information about peripheral locations and enabling;
+		> STM32G0x1 reference manual chapter 34 (SPI/I2S) - SPI setup information.
+ */
+void basic_spi1_setup(uint32_t transmittion_speed_in_hz)
+{
+	if(transmittion_speed_in_hz > 10000000)		// 10 Mhz is standart high SPI speed, so in general we should not use higer speeds
+	{
+		add_to_mistakes_log(WRONG_SPI_REQUENCY_INPUT);
+		transmittion_speed_in_hz = 8000000;		// set 8Mhz as default value
+	}
+
+	RCC->APBENR2 |= RCC_APBENR2_SPI1EN;
+
+	uint32_t baud_rate_devider = 2;
+	uint32_t baud_rate = 0;
+
+	for(int i = 0; i < 8; ++i)
+	{
+		if(SYSCLK_FREQUENCY/baud_rate_devider < transmittion_speed_in_hz)
+		{
+			break;
+		}
+		++baud_rate;
+		baud_rate_devider *= 2;
+	}
+
+	// set as SPI-master, disable NSS-pin
+	SPI1->CR1 |= SPI_CR1_SSM | SPI_CR1_SSI | (baud_rate << SPI_CR1_BR_Pos) | SPI_CR1_MSTR; // Equal to SPI1->CR1 |= 0x0314;
+	SPI1->CR2 |= SPI_CR2_FRXTH;
+	SPI1->CR1 |= SPI_CR1_SPE;
+}
+
+//	@brief Same deal as with basic_spi1-_etup function
+void basic_spi2_setup(uint32_t transmittion_speed_in_hz)
+{
+	if(transmittion_speed_in_hz > 10000000)		// 10 Mhz is standart high SPI speed, so in general we should not use higer speeds
+	{
+		add_to_mistakes_log(WRONG_SPI_REQUENCY_INPUT);
+		transmittion_speed_in_hz = 8000000;		// set 8Mhz as default value
+	}
+
+	RCC->APBENR1 |= RCC_APBENR1_SPI2EN;
+
+	uint32_t baud_rate_devider = 2;
+	uint32_t baud_rate = 0;
+
+	for(int i = 0; i < 8; ++i)
+	{
+		if(SYSCLK_FREQUENCY/baud_rate_devider < transmittion_speed_in_hz)
+		{
+			break;
+		}
+		++baud_rate;
+		baud_rate_devider *= 2;
+	}
+
+	SPI2->CR1 |= SPI_CR1_SSM | SPI_CR1_SSI | (baud_rate << SPI_CR1_BR_Pos) | SPI_CR1_MSTR; // Equal to SPI1->CR1 |= 0x0314;
+	SPI2->CR2 |= SPI_CR2_FRXTH;
+	SPI2->CR1 |= SPI_CR1_SPE;
+}
+
+
+
+void full_device_setup(void)
+{
 
 	system_clock_setup();
 
@@ -483,61 +597,38 @@ uint32_t full_device_setup(void){
 
 	timers_setup();
 
-	//*** Enable all needed peripherals ***//
-	RCC->APBENR1 |= RCC_APBENR1_SPI2EN;
-	RCC->APBENR2 |= RCC_APBENR2_SPI1EN | RCC_APBENR2_USART1EN | RCC_APBENR2_ADCEN; //	ADC??
+	return;
+}
 
-	//*** SPI1 setup ***//
-	SPI1->CR1 |= 0x0314; // set as SPI-master, disable NSS-pin
-	SPI1->CR2 |= 0x1000; //
-	SPI1->CR1 |= 0x0040; // turn on SPI
-
-	// SPI2 setup //
-	SPI2->CR1 |= 0x0314; // set as SPI-master, disable NSS-pin
-	SPI2->CR2 |= 0x1000; //
-	SPI2->CR1 |= 0x0040; // turn on SPI
-
-	//*** ADC setup ***//
-//	ADC->CCR |= 0x00040000;			// Divide clock by 2
-
-	ADC1->CR |= ADC_CR_ADVREGEN;	// Power up ADC
-
-	uint32_t timrrrr = 200;
-	delay_in_milliseconds(&timrrrr); // maybe more maybe less
-//	ADC1->CR |= ADC_CR_ADCAL;		// Calibrate ADC
-//	while(ADC1->CR & ADC_CR_ADCAL){}
-	ADC1->CFGR1 |= ADC_CFGR1_CHSELRMOD;
-	ADC1->CHSELR |= 0xF0;
-
-	ADC1->CR |= ADC_CR_ADEN;		// Enable ADC
-	while(!(ADC1->ISR & ADC_ISR_ADRDY)) {}
-
+//void TIM15_IRQHandler()
+//{
 //
-//	//*** System timer setup ***//
-//	SysTick->LOAD = 14999; // 200 times per second at 24 MHZ
-//	SysTick->VAL = 0;
-//	NVIC_EnableIRQ(SysTick_IRQn);
-//	SysTick->CTRL |= 0x03; // Starts SysTick, enables interrupts
+//}
+//
+//void TIM16_IRQHandler()
+//{
+//
+//}
+//
+//void TIM17_IRQHandler()
+//{
+//
+//}
 
-	return 0;
+
+
+void blink(void)
+{
+	GPIOD->ODR ^= 0x0F;
+	delay_in_milliseconds(1000000);
+	GPIOD->ODR ^= 0x0F;
+	delay_in_milliseconds(1000000);
+
 }
 
-
-
-void blink(void){
-
-	uint32_t temp_time = 1000000;
-
-	GPIOD->ODR ^= 0x0F;
-	delay_in_milliseconds(&temp_time);
-	GPIOD->ODR ^= 0x0F;
-	delay_in_milliseconds(&temp_time);
-
-}
-
-void delay_in_milliseconds(const uint32_t *time_in_millisecond){
+void delay_in_milliseconds(const uint32_t time_in_millisecond){
 	// Temporary implementation
-	for(uint32_t iterator = 0; iterator < *time_in_millisecond; ++iterator);
+	for(uint32_t iterator = 0; iterator < time_in_millisecond; ++iterator);
 }
 
 
