@@ -58,7 +58,9 @@ dkms.conf
 #CubeIDE project
 /*
 !/Src/
-!/STM32-random-libs/
+!/Inc/
+/Inc/*
+!/Inc/CMSIS
 #!/Inc/ # I should have all files in SRC, or even without a folder, so it will be easier to link them to project when I will submodule it 
 /Src/syscalls.c
 /Src/sysmem.c
