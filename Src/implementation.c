@@ -45,17 +45,16 @@
 */
 
 /*
-	@brief Makes log entry with given mistake code at current time
+	@brief Makes log entry with given mistake code at current time.
 
-	@param[in] target_log - pointer to mistakes log where to write
-
-	@param[in] entry_position_in_log -
+	@param[in] mistake_code - mistakes code to be written to log.
  */
 void add_to_mistakes_log(uint32_t mistake_code)
 {
 	mistakes_log[mistakes_log_pointer].mistake_code = mistake_code;
 	mistakes_log[mistakes_log_pointer].mistake_time_in_minuts = time_from_log_enable_in_minutes;
 	mistakes_log[mistakes_log_pointer].mistake_time_in_seconds = TIM14->CNT;
+
 	++mistakes_log_pointer;
 	if (mistakes_log_pointer == MISTAKES_LOG_SIZE)
 	{
@@ -510,7 +509,6 @@ void basic_uart1_setup(const uint32_t transmission_speed_in_bauds)
 	USART1->CR1 |= USART_CR1_TE | USART_CR1_RE;
 }
 
-
 // @brief Sends given byte when TX buffer is empty
 void uart1_send_byte(const uint8_t message_byte)
 {
@@ -520,7 +518,9 @@ void uart1_send_byte(const uint8_t message_byte)
 }
 
 /*
-	@brief Enable SPI1 transmission
+	@brief Enable SPI1 transmission with respect to given SPI speed
+
+	SPI speed is set by dividing bus frequency by 2^(SPI_CR1_BR) so in general, it is impossible to set exact SPI speed and the closest speed smaller then input is used.
 
 	@param[in] transmittion_speed_in_hz frequency witch will be used as a reference for set up (rounding down)
 
@@ -530,14 +530,17 @@ void uart1_send_byte(const uint8_t message_byte)
  */
 void basic_spi1_setup(uint32_t transmittion_speed_in_hz)
 {
-	if(transmittion_speed_in_hz > 10000000)		// 10 Mhz is standart high SPI speed, so in general we should not use higer speeds
+	// 10 Mhz is standard high SPI speed, so in general, we should not use higher speeds. If input speed is greater than 10Mhz set it to 5Mhz and write input mistake to log
+	if(transmittion_speed_in_hz > 10000000)
 	{
 		add_to_mistakes_log(WRONG_SPI_REQUENCY_INPUT);
-		transmittion_speed_in_hz = 8000000;		// set 8Mhz as default value
+		transmittion_speed_in_hz = 5000000;
 	}
 
+	// Enable SPI clocking
 	RCC->APBENR2 |= RCC_APBENR2_SPI1EN;
 
+	// SPI SPI_CR1_BR value determination
 	uint32_t baud_rate_devider = 2;
 	uint32_t baud_rate = 0;
 
@@ -551,23 +554,54 @@ void basic_spi1_setup(uint32_t transmittion_speed_in_hz)
 		baud_rate_devider *= 2;
 	}
 
-	// set as SPI-master, disable NSS-pin
+	// SPI setup
 	SPI1->CR1 |= SPI_CR1_SSM | SPI_CR1_SSI | (baud_rate << SPI_CR1_BR_Pos) | SPI_CR1_MSTR; // Equal to SPI1->CR1 |= 0x0314;
 	SPI1->CR2 |= SPI_CR2_FRXTH;
 	SPI1->CR1 |= SPI_CR1_SPE;
 }
 
-//	@brief Same deal as with basic_spi1-_etup function
+/*
+	@brief Transmit and receive single byte with SPI 1
+
+	@param[in] byte_to_be_sent Byte that will be sent by the SPI.
+
+	@return	Byte returned by SPI
+
+	@documentation
+		> STM32G0x1 reference manual chapter 34 (SPI/I2S) - SPI information.
+ */
+uint8_t spi1_write_single_byte(const uint8_t byte_to_be_sent)
+{
+	// Wait until transmit buffer is empty
+	while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE){}
+
+	// Write single byte into the Data Register with single byte access
+	*((volatile uint8_t *)&SPI1->DR) = byte_to_be_sent;
+
+	// Wait until answer will appear in RX buffer
+	while(((SPI1->SR & SPI_SR_RXNE) != SPI_SR_RXNE)){}
+//	while(((SPI->SR & 0x81) == 0x80)){}
+
+	// Return value from RX buffer
+	return SPI1->DR;
+}
+
+
+
+//	@brief Same deal as with basic_spi1_setup function
 void basic_spi2_setup(uint32_t transmittion_speed_in_hz)
 {
-	if(transmittion_speed_in_hz > 10000000)		// 10 Mhz is standart high SPI speed, so in general we should not use higer speeds
+	// 10 Mhz is standard high SPI speed, so in general, we should not use higher speeds. If input speed is greater than 10Mhz set it to 5Mhz and write input mistake to log
+	if(transmittion_speed_in_hz > 10000000)
 	{
 		add_to_mistakes_log(WRONG_SPI_REQUENCY_INPUT);
-		transmittion_speed_in_hz = 8000000;		// set 8Mhz as default value
+		transmittion_speed_in_hz = 5000000;
 	}
 
+	// Enable SPI clocking
 	RCC->APBENR1 |= RCC_APBENR1_SPI2EN;
 
+	// SPI SPI_CR1_BR value determination
 	uint32_t baud_rate_devider = 2;
 	uint32_t baud_rate = 0;
 
@@ -581,9 +615,27 @@ void basic_spi2_setup(uint32_t transmittion_speed_in_hz)
 		baud_rate_devider *= 2;
 	}
 
-	SPI2->CR1 |= SPI_CR1_SSM | SPI_CR1_SSI | (baud_rate << SPI_CR1_BR_Pos) | SPI_CR1_MSTR; // Equal to SPI1->CR1 |= 0x0314;
+	// SPI setup
+	SPI2->CR1 |= SPI_CR1_SSM | SPI_CR1_SSI | (baud_rate << SPI_CR1_BR_Pos) | SPI_CR1_MSTR; // Equal to SPI2->CR1 |= 0x0314;
 	SPI2->CR2 |= SPI_CR2_FRXTH;
 	SPI2->CR1 |= SPI_CR1_SPE;
+}
+
+//	@brief Same deal as with spi1_write_single_byte function
+uint8_t spi2_write_single_byte(const uint8_t byte_to_be_sent)
+{
+	// Wait until transmit buffer is empty
+	while((SPI2->SR & SPI_SR_TXE) != SPI_SR_TXE){}
+
+	// Write single byte into the Data Register with single byte access
+	*((volatile uint8_t *)&SPI2->DR) = byte_to_be_sent;
+
+	// Wait until answer will appear in RX buffer
+	while(((SPI2->SR & SPI_SR_RXNE) != SPI_SR_RXNE)){}
+//	while(((SPI->SR & 0x81) == 0x80)){}
+
+	// Return value from RX buffer
+	return SPI2->DR;
 }
 
 
@@ -615,8 +667,6 @@ void full_device_setup(void)
 //
 //}
 
-
-
 void blink(void)
 {
 	GPIOD->ODR ^= 0x0F;
@@ -630,6 +680,4 @@ void delay_in_milliseconds(const uint32_t time_in_millisecond){
 	// Temporary implementation
 	for(uint32_t iterator = 0; iterator < time_in_millisecond; ++iterator);
 }
-
-
 

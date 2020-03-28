@@ -87,24 +87,30 @@ void full_device_setup(void);
  */
 void basic_uart1_setup(const uint32_t transmission_speed_in_bauds);
 
-
-void basic_spi1_setup(uint32_t transmittion_speed_in_hz);
-
-void basic_spi2_setup(uint32_t transmittion_speed_in_hz);
-
-
-
-// @note Not implemented yet !!!
-//void advanced_uart1_setup(const uint32_t transmission_speed_in_bauds);
-
-// @brief	Sends given byte when TX buffer is empty
+/*
+	 @brief	Sends given byte when TX buffer is empty
+ */
 void uart1_send_byte(const uint8_t message_byte);
 
-// @note Not implemented yet !!!
-//void uart1_send_array(const uint8_t byte_message);
+/*
+	@brief Enable SPI1 transmission with respect to given SPI speed
+ */
+void basic_spi1_setup(uint32_t transmittion_speed_in_hz);
 
+/*
+	@brief Transmit and receive single byte with SPI 1
+ */
+uint8_t spi1_write_single_byte(const uint8_t byte_to_be_sent);
 
+/*
+	@brief Enable SPI2 transmission with respect to given SPI speed
+ */
+void basic_spi2_setup(uint32_t transmittion_speed_in_hz);
 
+/*
+	@brief Transmit and receive single byte with SPI 2
+ */
+uint8_t spi2_write_single_byte(const uint8_t byte_to_be_sent);
 
 
 uint32_t leds_diagnostic(void);
@@ -251,7 +257,19 @@ _DECL uint32_t time_from_log_enable_in_minutes _INIT(0);
 #define HSE_IS_OK 		1
 #define HSE_IS_NOT_OK 	0
 
-/* Completely random value to determine the waiting-state length */
+//*** NRF24L01+ defines ***//
+#define NRF24_CSN_HIGH 			GPIOB->BSRR	|=	GPIO_BSRR_BS1;
+#define NRF24_CSN_LOW  			GPIOB->BSRR |=	GPIO_BSRR_BR1;
+#define NRF24_CE_HIGH	 		GPIOB->BSRR	|=	GPIO_BSRR_BS0;
+#define NRF24_CE_LOW 	 		GPIOB->BSRR	|=	GPIO_BSRR_BR0;
+#define nrf24_spi_write			spi1_write_single_byte
+
+//*** ICM-20600 defines ***//
+#define ICM_CS_HIGH				GPIOB->BSRR |= GPIO_BSRR_BS12;
+#define ICM_CS_LOW				GPIOB->BSRR |= GPIO_BSRR_BR12;
+#define icm_spi_write			spi2_write_single_byte
+
+/*** Completely random value to determine the waiting-state length ***/
 #define DUMMY_DELAY_VALUE 10000
 
 #endif /* IMPLEMENTATION_H_ */
