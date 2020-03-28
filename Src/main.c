@@ -3,6 +3,7 @@
 #define VAR_DECLS
 
 #include "implementation.h"
+#include "icm-20600.h"
 
 
 	int16_t icm_data[6] = {0, 0, 0, 0, 0, 0};
