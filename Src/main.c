@@ -6,10 +6,13 @@
 #include "icm-20600.h"
 
 
-	int16_t icm_data[6] = {0, 0, 0, 0, 0, 0};
+int16_t icm_data[6] = {0, 0, 0, 0, 0, 0};
+uint8_t icm_test_data[4] = {0, 0, 0, 0};
 
-int32_t icm_20600_init(void);
+int32_t icm_20600_init(uint8_t *responses);
 int32_t icm_20600_getData(int16_t *data);
+
+
 
 // 	В такой реализации, когда включено прерывание, но при этом не написаны обработчики, программа крашится. Соответственно это хорошая возможность
 // 	потестировать watchdog, чтобы он мог чуть что ресетнуть контроллер при необходимости
@@ -48,11 +51,11 @@ int main(void)
 
 	full_device_setup();
 
+	basic_spi2_setup(5000000);
+
+	icm_20600_init(icm_test_data);
+
 //	TIM1->CCR4 = PWM_PRECISION/2;
-
-	basic_spi2_setup(8000000);
-
-	icm_20600_init();
 
 	while(1){
 
@@ -73,19 +76,19 @@ void SysTick_Handler()
 
 
 
-int32_t icm_20600_init(void)
+int32_t icm_20600_init(uint8_t *responses)
 {
 	ICM_CS_LOW
 
-	icm_spi_write(0x6B); // write to 107 (0x6B) register
-	icm_spi_write(0x00); // 0 to wake ICM from sleep mode
+	responses[0] = icm_spi_write(0x6B); // write to 107 (0x6B) register
+	responses[1] = icm_spi_write(0x00); // 0 to wake ICM from sleep mode
 
 	ICM_CS_HIGH
 
 	ICM_CS_LOW
 
-	icm_spi_write(0x70); // write to 112 (0x70) register
-	icm_spi_write(0x40); // disable I2C interface
+	responses[2] = icm_spi_write(0x70); // write to 112 (0x70) register
+	responses[3] = icm_spi_write(0x40); // disable I2C interface
 
 	ICM_CS_HIGH
 

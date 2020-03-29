@@ -113,9 +113,6 @@ void basic_spi2_setup(uint32_t transmittion_speed_in_hz);
 uint8_t spi2_write_single_byte(const uint8_t byte_to_be_sent);
 
 
-uint32_t leds_diagnostic(void);
-
-uint32_t motor_driver_diagnostic(void);
 
 uint32_t imu_diagnostic(void);
 
@@ -177,7 +174,7 @@ void delay_in_milliseconds(const uint32_t time_in_millisecond);
 void delay(const uint32_t time_in_milliseconds);
 
 //****************************************//
-//****** on user-adjustable defines ******//
+//****** non user-adjustable defines ******//
 //****************************************//
 /*
 	@brief All defines that should not be changed contains here. Also all checks for #define mistakes happen here redefines happen here so they will be at top of any listing and won't distract programmers.

@@ -533,7 +533,7 @@ void basic_spi1_setup(uint32_t transmittion_speed_in_hz)
 	// 10 Mhz is standard high SPI speed, so in general, we should not use higher speeds. If input speed is greater than 10Mhz set it to 5Mhz and write input mistake to log
 	if(transmittion_speed_in_hz > 10000000)
 	{
-		add_to_mistakes_log(WRONG_SPI_REQUENCY_INPUT);
+		add_to_mistakes_log(WRONG_SPI_FREQUENCY_INPUT);
 		transmittion_speed_in_hz = 5000000;
 	}
 
@@ -594,7 +594,7 @@ void basic_spi2_setup(uint32_t transmittion_speed_in_hz)
 	// 10 Mhz is standard high SPI speed, so in general, we should not use higher speeds. If input speed is greater than 10Mhz set it to 5Mhz and write input mistake to log
 	if(transmittion_speed_in_hz > 10000000)
 	{
-		add_to_mistakes_log(WRONG_SPI_REQUENCY_INPUT);
+		add_to_mistakes_log(WRONG_SPI_FREQUENCY_INPUT);
 		transmittion_speed_in_hz = 5000000;
 	}
 
@@ -666,6 +666,7 @@ void full_device_setup(void)
 //{
 //
 //}
+
 
 void blink(void)
 {
