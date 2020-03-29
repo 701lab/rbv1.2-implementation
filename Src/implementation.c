@@ -572,8 +572,18 @@ void basic_spi1_setup(uint32_t transmittion_speed_in_hz)
  */
 uint8_t spi1_write_single_byte(const uint8_t byte_to_be_sent)
 {
+	uint32_t safety_delay_counter = 0;
+
 	// Wait until transmit buffer is empty
-	while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE){}
+	while((SPI1->SR & SPI_SR_TXE) != SPI_SR_TXE)
+	{
+		++safety_delay_counter;
+		if ( safety_delay_counter > DUMMY_DELAY_VALUE )
+		{
+			add_to_mistakes_log(SPI_TRANSMISSION_FAIL);
+			return 0;
+		}
+	}
 
 	// Write single byte into the Data Register with single byte access
 	*((volatile uint8_t *)&SPI1->DR) = byte_to_be_sent;
@@ -624,15 +634,25 @@ void basic_spi2_setup(uint32_t transmittion_speed_in_hz)
 //	@brief Same deal as with spi1_write_single_byte function
 uint8_t spi2_write_single_byte(const uint8_t byte_to_be_sent)
 {
+	uint32_t safety_delay_counter = 0;
+
 	// Wait until transmit buffer is empty
-	while((SPI2->SR & SPI_SR_TXE) != SPI_SR_TXE){}
+	while ( (SPI2->SR & SPI_SR_TXE) != SPI_SR_TXE )
+	{
+		++safety_delay_counter;
+		if ( safety_delay_counter > DUMMY_DELAY_VALUE )
+		{
+			add_to_mistakes_log(SPI_TRANSMISSION_FAIL);
+			return 0;
+		}
+	}
 
 	// Write single byte into the Data Register with single byte access
 	*((volatile uint8_t *)&SPI2->DR) = byte_to_be_sent;
 
+
 	// Wait until answer will appear in RX buffer
-	while(((SPI2->SR & SPI_SR_RXNE) != SPI_SR_RXNE)){}
-//	while(((SPI->SR & 0x81) == 0x80)){}
+	while ( ((SPI2->SR & SPI_SR_RXNE) != SPI_SR_RXNE) ){}
 
 	// Return value from RX buffer
 	return SPI2->DR;
@@ -666,6 +686,7 @@ void full_device_setup(void)
 //{
 //
 //}
+
 
 
 void blink(void)

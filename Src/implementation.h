@@ -57,7 +57,8 @@
 
 
 
-
+///!!!!!!
+#define ICM_THROUGH_SPI
 
 //****************************//
 //****** User functions ******//
@@ -174,7 +175,7 @@ void delay_in_milliseconds(const uint32_t time_in_millisecond);
 void delay(const uint32_t time_in_milliseconds);
 
 //****************************************//
-//****** non user-adjustable defines ******//
+//****** Non user-adjustable defines ******//
 //****************************************//
 /*
 	@brief All defines that should not be changed contains here. Also all checks for #define mistakes happen here redefines happen here so they will be at top of any listing and won't distract programmers.

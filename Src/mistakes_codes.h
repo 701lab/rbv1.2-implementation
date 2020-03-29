@@ -13,6 +13,7 @@
 #define	PLL_FAILED						3
 #define SYSCLK_BASIC_SETUP_FAILED		4
 #define WRONG_SPI_FREQUENCY_INPUT		5
+#define SPI_TRANSMISSION_FAIL			6
 //#define SYSCLK_
 
 
