@@ -6,15 +6,15 @@
 #include "icm-20600.h"
 #include "nrf24l01.h"
 
-int16_t icm_data[6] = { 0, 0, 0, 0, 0, 0 };
+//int16_t icm_data[6] = { 0, 0, 0, 0, 0, 0 };
+//uint8_t icm_test_data[4] = { 0, 0, 0, 0 };
 
-uint8_t icm_test_data[4] = { 0, 0, 0, 0 };
+uint8_t addrForRx[5] = {0xAA,0xBB,0xCC,0xEE,0x10};
+//uint8_t addrForRx3[5] = {0xAA,0xBB,0xCC,0xEE,0x15};		// Green leds car
+uint8_t addrForRx3[5] = {0xAA,0xBB,0xCC,0xEE,0x25};	// blue leds car
+uint16_t nrfDataArray[5] = {0, 0, 0, 0, 0};
 
-float information_to_be_send[3] = { 0, 54, 275 };
-
-//
-//int32_t icm_20600_init(uint8_t *responses);
-//int32_t icm_20600_getData(int16_t *data);
+void control_robot();
 
 
 // 	В такой реализации, когда включено прерывание, но при этом не написаны обработчики, программа крашится. Соответственно это хорошая возможность
@@ -93,4 +93,73 @@ void SysTick_Handler()
 //	return 0;
 //}
 
+void control_tobot(void)
+{
+	if(dataAvailiable()){
+		readData(nrfDataArray, 10);
+		GPIOD->ODR |= 0x08;	// LED that shows connection with controller
+
+		dataHasBeenCaptured = 1;
+
+
+		setPwmWidth(&motor1, 0); //stop in case there is no command sent
+		setPwmWidth(&motor2, 0);
+
+
+		if(nrfDataArray[2] < 1000 /*means it up*/ && nrfDataArray[1] < 3000 && nrfDataArray[1] > 1000){
+			setPwmWidth(&motor1, currentSpeedTask);
+			setPwmWidth(&motor2, currentSpeedTask);
+//			GPIOB->ODR |= 0x90; // forward
+		}
+		else if(nrfDataArray[2] < 1000 /*means it up*/ && nrfDataArray[1] < 1000){
+			setPwmWidth(&motor1, currentSpeedTask);
+			setPwmWidth(&motor2, 299);
+//			setPwmWidth(&motor2, 0);
+//			GPIOB->ODR |= 0x80; // forward left
+		}
+		else if(nrfDataArray[2] > 1000 && nrfDataArray[2] < 3000 && nrfDataArray[1] < 1000){
+			setPwmWidth(&motor1, currentSpeedTask - 200);
+			setPwmWidth(&motor2, -currentSpeedTask + 200);
+//			GPIOB->ODR |= 0xA0; // turn left
+		}
+		else if(nrfDataArray[2] > 3000 && nrfDataArray[1] < 1000){
+			setPwmWidth(&motor1, -currentSpeedTask);
+			setPwmWidth(&motor2, -299);
+//			setPwmWidth(&motor2, 0);
+//			GPIOB->ODR |= 0x40; // backward left
+		}
+		else if(nrfDataArray[2] > 3000  && nrfDataArray[1] < 3000 && nrfDataArray[1] > 1000){
+			setPwmWidth(&motor1, -currentSpeedTask);
+			setPwmWidth(&motor2, -currentSpeedTask);
+//			GPIOB->ODR |= 0x60; // backward
+		}
+		else if(nrfDataArray[2] > 3000 && nrfDataArray[1] > 3000){
+//			setPwmWidth(&motor1, 0);
+			setPwmWidth(&motor1, -299);
+			setPwmWidth(&motor2, -currentSpeedTask);
+//			GPIOB->ODR |= 0x20; // backward right
+		}
+		else if(nrfDataArray[2] < 1000 && nrfDataArray[1] > 3000){
+//			setPwmWidth(&motor1, 0);
+			setPwmWidth(&motor1, 299);
+			setPwmWidth(&motor2, currentSpeedTask);
+//			GPIOB->ODR |= 0x10; // forward right
+		}
+		else if(nrfDataArray[2] > 1000 && nrfDataArray[2] < 3000 && nrfDataArray[1] > 3000){
+			setPwmWidth(&motor1, -currentSpeedTask+200);
+			setPwmWidth(&motor2, currentSpeedTask-200);
+//			GPIOB->ODR |= 0x50; // turn right
+		}
+
+		if((nrfDataArray[4] & 0x14) == 0x14){ // means, that top right button is unpressed
+			currentSpeedTask = 599;
+		}
+		else if((nrfDataArray[4] & 0x04) == 0){
+			currentSpeedTask = 899;
+		}
+		else{
+			currentSpeedTask = 1199;
+		}
+	}
+}
 
