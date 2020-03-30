@@ -1,6 +1,5 @@
 
 // For global variables declareation
-// for Andrey
 #define VAR_DECLS
 
 #include "implementation.h"
