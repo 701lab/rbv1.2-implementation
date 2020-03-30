@@ -4,15 +4,17 @@
 
 #include "implementation.h"
 #include "icm-20600.h"
+#include "nrf24l01.h"
 
+int16_t icm_data[6] = { 0, 0, 0, 0, 0, 0 };
 
+uint8_t icm_test_data[4] = { 0, 0, 0, 0 };
 
-int16_t icm_data[6] = {0, 0, 0, 0, 0, 0};
-uint8_t icm_test_data[4] = {0, 0, 0, 0};
+float information_to_be_send[3] = { 0, 54, 275 };
+
 //
 //int32_t icm_20600_init(uint8_t *responses);
 //int32_t icm_20600_getData(int16_t *data);
-
 
 
 // 	В такой реализации, когда включено прерывание, но при этом не написаны обработчики, программа крашится. Соответственно это хорошая возможность
@@ -24,24 +26,18 @@ int main(void)
 
 	full_device_setup();
 
-	basic_spi2_setup(5000000);
+	delay_in_milliseconds(1000000);
 
-	if(icm_20600_basic_init(1))
-	{
-		add_to_mistakes_log(23);
-	}
+	basic_spi1_setup(5000000);
 
-
-//	icm_20600_init(responses)
-
-//	icm_20600_init(icm_test_data);
+	nrf24_basic_init();
 
 //	TIM1->CCR4 = PWM_PRECISION/2;
 
 	while(1){
 //		icm_basic_init
 
-		icm_20600_get_sensors_data(icm_data, 0);
+
 		GPIOD->ODR ^= 0x03;
 		blink();
 	}

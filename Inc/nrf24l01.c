@@ -6,7 +6,7 @@
 // 1 MBS, -6dBm, 32 payload length, 45 channel
 //******************************************//
 
-void initNRF_SPI(void){
+void nrf24_basic_init(void){
 
 	NRF24_CSN_HIGH
 
@@ -17,7 +17,7 @@ void initNRF_SPI(void){
 	nrf24_spi_write(0x0E); // Transmiter mod
 	NRF24_CSN_HIGH
 
-	//Next to registers - realy advanced setup.
+	//Next to registers - really advanced setup.
 	NRF24_CSN_LOW
 	nrf24_spi_write(NRF24_W_REGISTER | NRF24_FEATURE);		 //0x3D
 	nrf24_spi_write(0x00);
@@ -220,7 +220,7 @@ Send data by splitting it into single bytes. Weird method, but really beautiful 
 */
 //**************************************//
 
-void sendData(const void* data, uint32_t PayloadSize, int no_ack)
+void nrf24_send_data(const void* data, uint32_t PayloadSize, int no_ack)
 {
 	NRF24_CE_LOW
 
@@ -281,23 +281,24 @@ uint8_t dataAvailiable(void)
  fulling any array with needed data. If it works, same aproach can work with transmition, which will be greate.
 */
 //*************************************************//
-
-void readData(void* data, uint32_t PayloadSize)
+void readData(void *data, uint32_t PayloadSize)
 {
 
-	uint8_t* current = data;
+	uint8_t *current = data;
 
 	NRF24_CSN_LOW
 	nrf24_spi_write(NRF24_R_RX_PAYLOAD);
-	for(int i = 0; i < PayloadSize; ++i){
+	for ( int i = 0; i < PayloadSize; ++i )
+	{
 		*current++ = nrf24_spi_write(0xFF); //
 	}
-	
+
 	int tmp = PAYLOAD_LENGTH - PayloadSize;
-	for(int i = 0; i < tmp; ++i){
+	for ( int i = 0; i < tmp; ++i )
+	{
 		nrf24_spi_write(0xFF);
 	}
-	
+
 	NRF24_CSN_HIGH
 
 	NRF24_CSN_LOW
@@ -309,4 +310,31 @@ void readData(void* data, uint32_t PayloadSize)
 	nrf24_spi_write(NRF_STATUS_RESET);
 	NRF24_CSN_HIGH
 }
+
+
+//************read data from NRF24l01+*************//
+/*
+ If i right, all data srores in memory byte by byte, so, no matter what length we send we will be able to reconstruct data by
+ fulling any array with needed data. If it works, same aproach can work with transmition, which will be greate.
+*/
+//*************************************************//
+uint32_t nrf24_check_if_alive(void)
+{
+	NRF24_CSN_LOW
+
+	nrf24_spi_write(NRF24_RF_CH);
+
+	if ( nrf24_spi_write(0xFF) )
+	{
+		NRF24_CSN_HIGH
+		return 0;
+	}
+
+	return 1;
+	NRF24_CSN_HIGH
+}
+
+
+
+
 

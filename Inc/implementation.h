@@ -53,7 +53,7 @@
 
 	TODO: It will be good to implement some type of black box: way to permanently store log with system parameters for the last couple of hours at least: EEPROM won't suffice
  */
-#define MISTAKES_LOG_SIZE			50
+#define MISTAKES_LOG_SIZE			10
 
 
 

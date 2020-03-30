@@ -32,10 +32,13 @@
 	#define NRF_STATUS_RESET 0x70 	// reset all interupts flags
 
 	// Transmiter and reciever payload lenght
-	#define PAYLOAD_LENGTH 10 			// number of bytes to be transmited and recieved. Roght now all pipes use the same value
+	#define PAYLOAD_LENGTH 12 			// number of bytes to be transmited and recieved. Roght now all pipes use the same value
 																	// can be updated. so each pype will have it own pyaload length. Values [1, 32]
 
-	void initNRF_SPI(void);    // consist NRF registers setup
+	void nrf24_basic_init(void);    		// consist NRF registers setup
+
+	uint32_t nrf24_check_if_alive(void);
+
 
 	void setTxAddress(uint8_t transiverAddress[5]);
 
@@ -44,7 +47,7 @@
 	
 	void enablePype(uint8_t pypeAddress[5],uint32_t pipeNum);
 
-	void sendData(const void* data, uint32_t PayloadSize, int no_ack);
+	void nrf24_send_data(const void* data, uint32_t PayloadSize, int no_ack);
 
 	uint8_t dataAvailiable(void);//-
 	void readData(void* data, uint32_t PayloadSize);
