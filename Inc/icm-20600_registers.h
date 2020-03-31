@@ -27,8 +27,13 @@
 // Registers
 #define ICM_SMPLRT_DIV					0x19
 #define ICM_CONFIG						0x1A
+
 #define ICM_GYRO_CONFIG					0x1B
+	#define	ICM_GYRO_CONFIG_FS_SEL_pos		(3U)
+
 #define ICM_ACCEL_CONFIG_1				0x1C
+	#define ICM_ACCEL_CONFIG_1_FS_SEL_pos	(3U)
+
 #define ICM_ACCEL_CONFIG_2				0x1D
 #define ICM_LP_MODE_CFG					0x1E
 

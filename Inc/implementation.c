@@ -650,6 +650,7 @@ uint8_t spi2_write_single_byte(const uint8_t byte_to_be_sent)
 	// Write single byte into the Data Register with single byte access
 	*((volatile uint8_t *)&SPI2->DR) = byte_to_be_sent;
 
+	safety_delay_counter = 0;
 
 	// Wait until answer will appear in RX buffer
 	while ( ((SPI2->SR & SPI_SR_RXNE) != SPI_SR_RXNE) ){}
@@ -686,6 +687,122 @@ void full_device_setup(void)
 //{
 //
 //}
+
+void gpioc6_high(void)
+{
+	GPIOC->BSRR |= GPIO_BSRR_BS6;
+}
+
+void gpioc6_low(void)
+{
+	GPIOC->BSRR |= GPIO_BSRR_BR6;
+}
+
+void gpiob12_high(void)
+{
+	GPIOB->BSRR |= GPIO_BSRR_BS12;
+}
+
+void gpiob12_low(void)
+{
+	GPIOB->BSRR |= GPIO_BSRR_BR12;
+}
+
+void gpiob1_high(void)
+{
+	GPIOB->BSRR |= GPIO_BSRR_BS1;
+}
+
+void gpiob1_low(void)
+{
+	GPIOB->BSRR |= GPIO_BSRR_BR1;
+}
+
+void gpiob0_high(void)
+{
+	GPIOB->BSRR |= GPIO_BSRR_BS0;
+}
+
+void gpiob0_low(void)
+{
+	GPIOB->BSRR |= GPIO_BSRR_BR0;
+}
+
+uint32_t set_motor1_pwm(const int32_t required_duty_cycle_coefficient)
+{
+	uint32_t max_duty_cycle = PWM_PRECISION;
+
+	if (required_duty_cycle_coefficient < 0)
+	{
+		if(required_duty_cycle_coefficient < - max_duty_cycle) 	// PWM task negative but higher than maximum -> set maximum PWM in reverse direction
+		{
+			TIM1->CCR3 = max_duty_cycle;
+			TIM1->CCR4 = 0;
+
+			return PWM_TASK_LOWER_THAN_MINIMUM;
+		}
+		else {						// PWM task is negative and less than maximum -> set task PWM in reverse direction
+			TIM1->CCR3 = max_duty_cycle;
+			TIM1->CCR4 = max_duty_cycle + required_duty_cycle_coefficient;
+		}
+	}
+	else
+	{ /* required_duty_cycle_coefficient >= 0 */
+		if(required_duty_cycle_coefficient > max_duty_cycle)	// PWM task is positive but higher than maximum -> set maximum PWM in forward direction
+		{
+			TIM1->CCR4 = max_duty_cycle;
+			TIM1->CCR3 = 0;
+
+			return PWM_TASK_HIGHER_THAN_MAXIMUM;
+		}
+		else						// PWM task is positive and less than maximum -> set maximum PWM in forward direction
+		{
+			TIM1->CCR4 = max_duty_cycle;
+			TIM1->CCR3 = max_duty_cycle - required_duty_cycle_coefficient;
+		}
+	} /* required_duty_cycle_coefficient >= 0 */
+
+	return 0;
+}
+
+uint32_t set_motor2_pwm(const int32_t required_duty_cycle_coefficient)
+{
+	uint32_t max_duty_cycle = PWM_PRECISION;
+
+	if (required_duty_cycle_coefficient < 0)
+	{
+		if(required_duty_cycle_coefficient < - max_duty_cycle) 	// PWM task negative but higher than maximum -> set maximum PWM in reverse direction
+		{
+			TIM1->CCR2 = max_duty_cycle;
+			TIM1->CCR1 = 0;
+
+			return PWM_TASK_LOWER_THAN_MINIMUM;
+		}
+		else {						// PWM task is negative and less than maximum -> set task PWM in reverse direction
+			TIM1->CCR2 = max_duty_cycle;
+			TIM1->CCR1 = max_duty_cycle + required_duty_cycle_coefficient;
+		}
+	}
+	else
+	{ /* required_duty_cycle_coefficient >= 0 */
+		if(required_duty_cycle_coefficient > max_duty_cycle)	// PWM task is positive but higher than maximum -> set maximum PWM in forward direction
+		{
+			TIM1->CCR1 = max_duty_cycle;
+			TIM1->CCR2 = 0;
+
+			return PWM_TASK_HIGHER_THAN_MAXIMUM;
+		}
+		else						// PWM task is positive and less than maximum -> set maximum PWM in forward direction
+		{
+			TIM1->CCR1 = max_duty_cycle;
+			TIM1->CCR2 = max_duty_cycle - required_duty_cycle_coefficient;
+		}
+	} /* required_duty_cycle_coefficient >= 0 */
+
+	return 0;
+}
+
+
 
 
 
