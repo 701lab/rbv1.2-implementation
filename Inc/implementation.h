@@ -53,8 +53,7 @@
 
 	TODO: It will be good to implement some type of black box: way to permanently store log with system parameters for the last couple of hours at least: EEPROM won't suffice
  */
-#define MISTAKES_LOG_SIZE			10
-
+#define MISTAKES_LOG_SIZE			50
 
 
 ///!!!!!!
@@ -262,10 +261,26 @@ _DECL uint32_t time_from_log_enable_in_minutes _INIT(0);
 #define NRF24_CE_LOW 	 		GPIOB->BSRR	|=	GPIO_BSRR_BR0;
 #define nrf24_spi_write			spi1_write_single_byte
 
+void gpiob1_high(void);
+void gpiob1_low(void);
+void gpiob0_high(void);
+void gpiob0_low(void);
+
+
 //*** ICM-20600 defines ***//
-#define ICM_CS_HIGH				GPIOB->BSRR |= GPIO_BSRR_BS12;
-#define ICM_CS_LOW				GPIOB->BSRR |= GPIO_BSRR_BR12;
-#define icm_spi_write			spi2_write_single_byte
+void gpiob12_high(void);
+void gpiob12_low(void);
+
+//*** DRV8848 defines ***//
+void gpioc6_low(void);
+void gpioc6_high(void);
+
+
+uint32_t set_motor1_pwm(const int32_t required_duty_cycle_coefficient);
+uint32_t set_motor2_pwm(const int32_t required_duty_cycle_coefficient);
+
+int16_t get_motor1_encoder_value(void);
+int16_t get_motor2_encoder_value(void);
 
 /*** Completely random value to determine the waiting-state length ***/
 #define DUMMY_DELAY_VALUE 10000
