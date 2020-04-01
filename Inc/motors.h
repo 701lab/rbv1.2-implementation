@@ -68,7 +68,6 @@ typedef struct{
 	const float encoder_constant;
 
 	const uint32_t max_duty_cycle_coefficient;
-	uint32_t currentPwmWidth;
 
 } motor;
 
@@ -80,7 +79,7 @@ uint32_t motors_rotation_deiraction_test (motor *motor_instance);
 float motors_get_position(motor *motor_instance);
 float motors_get_speed_by_incements(const motor *motor_instance, const float time_increment);
 
-float position_controller_handler(motor *motor_instance); // returns speed task
+float motors_position_controller_handler(motor *motor_instance); // returns speed task
 float motors_speed_controller_handler(const motor *motor_instance, const float time_increment); // ideally should return current controller task (float)
 
 

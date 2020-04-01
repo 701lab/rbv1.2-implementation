@@ -39,10 +39,20 @@ speed_control motor1_speed_cotroller =
 					.current_speed = 0.0f
 			};
 
+position_control motor1_position_controller =
+			{
+					.kp = 1.0f,
+					.current_position = 0.0f,
+					.previous_encoder_counter_value = 0.0f,
+					.regulator_control_signal = 0.0f,
+					.target_position = 0.0f
+			};
+
+
 speed_control motor2_speed_cotroller =
 			{
 					.kp = 200.0f,
-					.ki = 5000.0f,
+					.ki = 7000.0f,
 					.current_integral = 0.0f,
 					.controller_output_limitation_value = PWM_PRECISION,
 					.previous_encoder_counter_value = 0,
@@ -53,6 +63,7 @@ speed_control motor2_speed_cotroller =
 			};
 
 
+
 int main(void)
 {
 	motor1.motor_disable = gpioc6_low;
@@ -60,6 +71,7 @@ int main(void)
 	motor1.set_pwm_duty_cycle = set_motor1_pwm;
 	motor1.get_encoder_counter_value = get_motor1_encoder_value;
 	motor1.speed_controller = &motor1_speed_cotroller;
+	motor1.position_controller = &motor1_position_controller;
 
 	motor2.motor_disable = gpioc6_low;
 	motor2.motor_enable = gpioc6_high;
@@ -71,16 +83,8 @@ int main(void)
 	full_device_setup();
 
 
-	motor1.speed_controller->target_speed = 0.5;
-
-	if(motors_rotation_deiraction_test(&motor1))
-	{
-		add_to_mistakes_log(14124);
-	}
-
-
 	// Enables both motors
-//	motor1.motor_enable();
+	motor1.motor_enable();
 
 
 	basic_spi1_setup(5000000);
@@ -106,6 +110,13 @@ int main(void)
 //	TIM1->CCR4 = PWM_PRECISION/2;
 
 	while(1){
+
+		motor1.position_controller->target_position = 10.0f;
+		delay_in_milliseconds(50000000);
+
+		motor1.position_controller->target_position = 0.0f;
+		delay_in_milliseconds(50000000);
+
 //		icm_20600_get_sensors_data(&robot_imu, icm_data, 0);
 
 //		motor1.speed_controller->target_speed = 0.5;
@@ -137,7 +148,7 @@ int main(void)
 //		motor1.set_pwm_duty_cycle(PWM_PRECISION/2);
 //
 //		motor1.set_pwm_duty_cycle(PWM_PRECISION);
-		delay_in_milliseconds(10000000);
+
 
 		GPIOD->ODR ^= 0x03;
 //		blink();
@@ -158,11 +169,17 @@ void SysTick_Handler()
 
 	if(control_systems_counter%10 == 0)	// 20 раз в секунду
 	{
-		motors_get_speed_by_incements(&motor1, system_time_increment * 10);
-		float speed_task = motors_speed_controller_handler(&motor1, system_time_increment * 10);
+		motors_get_speed_by_incements(&motor1, system_time_increment * 10.0f);
+		float speed_task = motors_speed_controller_handler(&motor1, system_time_increment * 10.0f);
 		motor1.set_pwm_duty_cycle((int32_t)speed_task);
 	}
 
+
+	if(control_systems_counter%20 == 0)
+	{
+		motors_get_position(&motor1);
+		motor1.speed_controller->target_speed = motors_position_controller_handler(&motor1);
+	}
 
 
 	if(control_systems_counter == 200)

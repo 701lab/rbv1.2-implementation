@@ -447,14 +447,14 @@ void timers_setup(void)
 
 	//*** Timer2 encoder setup ***//
 	TIM2->ARR = 65535; 		// 2^16-1 - maximum value for this timer. No prescaler, so timer is working with max speed
-	TIM2->CCER |= 0x02;		// Should be uncommented if encoder direction reversal is needed
+//	TIM2->CCER |= 0x02;		// Should be uncommented if encoder direction reversal is needed
 	TIM2->SMCR |= 0x03;		// Encoder mode setup
 	TIM2->CNT = 0;			// Clear counter before start
 	TIM2->CR1 |= TIM_CR1_CEN;
 
 	//*** Timer3 encoder setup ***//
 	TIM3->ARR = 65535; 		// 2^16-1 - maximum value for this timer. No prescaler, so timer is working with max speed
-//	TIM3->CCER |= 0x02;		// Should be uncommented if encoder direction reversal is needed
+	TIM3->CCER |= 0x02;		// Should be uncommented if encoder direction reversal is needed
 	TIM3->SMCR |= 0x03;		// Encoder mode setup
 	TIM3->CNT = 0;			// Clear counter before start
 	TIM3->CR1 |= TIM_CR1_CEN;
