@@ -103,45 +103,43 @@ uint32_t motors_rotation_deiraction_test (motor *motor_instance)
 
 }
 
-
 float motors_get_position(motor *motor_instance)
 {
-	if(motor_instance->position_controller == 0)
+	if ( motor_instance->position_controller == 0 )
 	{
 		return 0.0f;
 	}
 
 	int16_t current_encoder_counter_value = motor_instance->get_encoder_counter_value();
-	int16_t encoder_counter_value_change = current_encoder_counter_value  - motor_instance->position_controller->previous_encoder_counter_value;
+	int16_t encoder_counter_value_change = current_encoder_counter_value - motor_instance->position_controller->previous_encoder_counter_value;
 
-	motor_instance->position_controller->current_position += encoder_counter_value_change/(motor_instance->encoder_constant);
+	motor_instance->position_controller->current_position += encoder_counter_value_change / (motor_instance->encoder_constant);
 
 	motor_instance->position_controller->previous_encoder_counter_value = current_encoder_counter_value;
 
 	return current_encoder_counter_value;
 }
 
-
 float motors_position_controller_handler(motor *motor_instance)
 {
-	if(motor_instance->position_controller == 0)
+	if ( motor_instance->position_controller == 0 )
 	{
 		return 0.0f;
 	}
 
-	float current_position_mistake =  motor_instance->position_controller->target_position -  motor_instance->position_controller->current_position;
-	motor_instance->position_controller->regulator_control_signal = motor_instance->position_controller->kp * current_position_mistake;
+	float current_position_mistake = motor_instance->position_controller->target_position - motor_instance->position_controller->current_position;
+
+	if(current_position_mistake < motor_instance->position_controller->position_precision && current_position_mistake > -motor_instance->position_controller->position_precision)
+	{
+		motor_instance->position_controller->regulator_control_signal = 0.0f;
+	}
+	else
+	{
+		motor_instance->position_controller->regulator_control_signal = motor_instance->position_controller->kp	* current_position_mistake;
+	}
+
 
 	return motor_instance->position_controller->regulator_control_signal;
 }
-
-
-float motors_combined_position_controller_nadler(motor *motor_instance)
-{
-
-}
-
-
-
 
 

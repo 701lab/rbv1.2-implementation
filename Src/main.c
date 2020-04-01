@@ -28,7 +28,7 @@ motor motor2 =
 
 speed_control motor1_speed_cotroller =
 			{
-					.kp = 200.0f,
+					.kp = 1000.0f,
 					.ki = 5000.0f,
 					.current_integral = 0.0f,
 					.controller_output_limitation_value = PWM_PRECISION,
@@ -45,7 +45,7 @@ position_control motor1_position_controller =
 					.current_position = 0.0f,
 					.previous_encoder_counter_value = 0.0f,
 					.regulator_control_signal = 0.0f,
-					.target_position = 0.0f
+					.target_position = 0.0f,
 			};
 
 
@@ -72,6 +72,7 @@ int main(void)
 	motor1.get_encoder_counter_value = get_motor1_encoder_value;
 	motor1.speed_controller = &motor1_speed_cotroller;
 	motor1.position_controller = &motor1_position_controller;
+	motor1_position_controller.position_precision = 8.0f/motor1.encoder_constant;
 
 	motor2.motor_disable = gpioc6_low;
 	motor2.motor_enable = gpioc6_high;

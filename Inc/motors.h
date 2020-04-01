@@ -13,6 +13,7 @@ typedef struct{
 	float target_position;
 	float current_position;
 	float regulator_control_signal;
+	float position_precision;
 	int16_t previous_encoder_counter_value;
 
 } position_control;
@@ -82,8 +83,6 @@ float motors_get_speed_by_incements(const motor *motor_instance, const float tim
 float motors_position_controller_handler(motor *motor_instance); // returns speed task
 float motors_speed_controller_handler(const motor *motor_instance, const float time_increment); // ideally should return current controller task (float)
 
-
-
-
+float motors_combined_position_controller_nadler(motor *motor_instance);
 
 #endif /* MOTORS_H_ */
