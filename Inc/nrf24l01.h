@@ -31,15 +31,9 @@
 // NRF_STATUS values
 #define NRF_STATUS_RESET 0x70 	// reset all interupts flags
 
-<<<<<<< HEAD
-	// Transmiter and reciever payload lenght
-	#define PAYLOAD_LENGTH 10 			// number of bytes to be transmited and recieved. Roght now all pipes use the same value
-																	// can be updated. so each pype will have it own pyaload length. Values [1, 32]
-=======
 // Transmiter and reciever payload lenght
 #define PAYLOAD_LENGTH 12 			// number of bytes to be transmited and recieved. Roght now all pipes use the same value
 																// can be updated. so each pype will have it own pyaload length. Values [1, 32]
->>>>>>> master
 
 void nrf24_basic_init(void);    		// consist NRF registers setup
 
