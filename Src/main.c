@@ -39,6 +39,18 @@ speed_control motor1_speed_cotroller =
 					.current_speed = 0.0f
 			};
 
+speed_control motor2_speed_cotroller =
+			{
+					.kp = 200.0f,
+					.ki = 5000.0f,
+					.current_integral = 0.0f,
+					.controller_output_limitation_value = PWM_PRECISION,
+					.previous_encoder_counter_value = 0,
+					.previous_speed_mistake = 0.0f,
+					.target_speed = 0.0f,
+					.regulator_control_signal = 0.0f,
+					.current_speed = 0.0f
+			};
 
 
 int main(void)
@@ -53,12 +65,22 @@ int main(void)
 	motor2.motor_enable = gpioc6_high;
 	motor2.set_pwm_duty_cycle = set_motor2_pwm;
 	motor2.get_encoder_counter_value = get_motor2_encoder_value;
+	motor2.speed_controller = &motor2_speed_cotroller;
 
 
 	full_device_setup();
 
+
+	motor1.speed_controller->target_speed = 0.5;
+
+	if(motors_rotation_deiraction_test(&motor1))
+	{
+		add_to_mistakes_log(14124);
+	}
+
+
 	// Enables both motors
-	motor1.motor_enable();
+//	motor1.motor_enable();
 
 
 	basic_spi1_setup(5000000);
@@ -86,36 +108,36 @@ int main(void)
 	while(1){
 //		icm_20600_get_sensors_data(&robot_imu, icm_data, 0);
 
-		motor1.speed_controller->target_speed = 0.5;
-		delay_in_milliseconds(10000000);
-
-
-		motor1.speed_controller->target_speed = 1.5;
-		delay_in_milliseconds(10000000);
-
-		motor1.speed_controller->target_speed = 2.5;
-		delay_in_milliseconds(10000000);
-
-		motor1.speed_controller->target_speed = 1.5;
-		delay_in_milliseconds(10000000);
-
-		motor1.speed_controller->target_speed = 0.5;
-		delay_in_milliseconds(10000000);
-
-		motor1.speed_controller->target_speed = -0.5;
-		delay_in_milliseconds(10000000);
-
-		motor1.speed_controller->target_speed = -1.5;
-		delay_in_milliseconds(10000000);
-
-		motor1.speed_controller->target_speed = -0.5;
-		delay_in_milliseconds(10000000);
+//		motor1.speed_controller->target_speed = 0.5;
+//		delay_in_milliseconds(10000000);
+//
+//
+//		motor1.speed_controller->target_speed = 1.5;
+//		delay_in_milliseconds(10000000);
+//
+//		motor1.speed_controller->target_speed = 2.5;
+//		delay_in_milliseconds(10000000);
+//
+//		motor1.speed_controller->target_speed = 1.5;
+//		delay_in_milliseconds(10000000);
+//
+//		motor1.speed_controller->target_speed = 0.5;
+//		delay_in_milliseconds(10000000);
+//
+//		motor1.speed_controller->target_speed = -0.5;
+//		delay_in_milliseconds(10000000);
+//
+//		motor1.speed_controller->target_speed = -1.5;
+//		delay_in_milliseconds(10000000);
+//
+//		motor1.speed_controller->target_speed = -0.5;
+//		delay_in_milliseconds(10000000);
 
 
 //		motor1.set_pwm_duty_cycle(PWM_PRECISION/2);
 //
 //		motor1.set_pwm_duty_cycle(PWM_PRECISION);
-//		delay_in_milliseconds(10000000);
+		delay_in_milliseconds(10000000);
 
 		GPIOD->ODR ^= 0x03;
 //		blink();

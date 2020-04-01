@@ -9,11 +9,11 @@
 
 typedef struct{
 
-	float Kp;
-	float targetPosition;
-	float currentPosition;
-	float regulatorControlSignal;
-	int16_t previousEncoderCounterValue;
+	float kp;
+	float target_position;
+	float current_position;
+	float regulator_control_signal;
+	int16_t previous_encoder_counter_value;
 
 } position_control;
 
@@ -72,8 +72,10 @@ typedef struct{
 
 } motor;
 
-
-uint32_t encoderSetupTest (motor *m);
+/*
+	@brief Checks if given motor shaft rotates in the same direction as encoder counts. Returns mistake code if rotation and counting are in different directions, or encoder counted 0.
+ */
+uint32_t motors_rotation_deiraction_test (motor *motor_instance);
 
 float motors_get_position(motor *motor_instance);
 float motors_get_speed_by_incements(const motor *motor_instance, const float time_increment);

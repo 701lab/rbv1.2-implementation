@@ -63,6 +63,42 @@ float motors_speed_controller_handler(const motor *motor_instance, const float t
 
 
 
+uint32_t motors_rotation_deiraction_test (motor *motor_instance)
+{
+
+	if(motor_instance->speed_controller != 0)
+	{
+		motor_instance->speed_controller->target_speed = 0.0f;
+	}
+	// make sure that motor is not rotating right now
+	motor_instance->motor_disable();
+
+	// Give motor a moment to stop
+	for(int i = 0; i < 1000000; ++i);
+
+	int16_t current_encoder_counter_value = motor_instance->get_encoder_counter_value();
+
+	// Start motor with 1/3 of power
+	motor_instance->set_pwm_duty_cycle(motor_instance->max_duty_cycle_coefficient/3);
+	motor_instance->motor_enable();
+
+	// Give motor a moment to run
+	for(int i = 0; i < 1000000; ++i);
+
+	motor_instance->motor_disable();
+
+	int16_t new_current_encoder_counter_value = motor_instance->get_encoder_counter_value();
+
+	if (new_current_encoder_counter_value - current_encoder_counter_value <= 0)
+	{
+		return 1;
+	}
+
+	return 0;
+
+}
+
+
 /****** Right motor encoder connection test ******
  * Takes pointer to motor instance.  Tests if expected forward direction of motor shaft rotation is counted up by encoder timer. If true - return 1 else 0.
  *
