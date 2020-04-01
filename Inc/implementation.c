@@ -447,7 +447,7 @@ void timers_setup(void)
 
 	//*** Timer2 encoder setup ***//
 	TIM2->ARR = 65535; 		// 2^16-1 - maximum value for this timer. No prescaler, so timer is working with max speed
-	TIM2->CCER |= 0x02;		// Should be uncommented if encoder direction reversal is needed
+//	TIM2->CCER |= 0x02;		// Should be uncommented if encoder direction reversal is needed
 	TIM2->SMCR |= 0x03;		// Encoder mode setup
 	TIM2->CNT = 0;			// Clear counter before start
 	TIM2->CR1 |= TIM_CR1_CEN;
@@ -461,7 +461,7 @@ void timers_setup(void)
 
 	//*** TIM14 test setup ***//
 	TIM14->PSC |= (uint32_t)(SYSCLK_FREQUENCY / 28800 - 1); //
-	TIM14->ARR = 28799; 	// 60 second * 60 millisecond * 8 - 1 to get 0.125 milliseconds step
+	TIM14->ARR = 35999; 	// 60 second * 60 millisecond * 10 - 1 to get 0.1 milliseconds step
 	TIM14->CNT = 0;			// Clear counter before start
 	TIM14->DIER |= TIM_DIER_UIE;
 	NVIC_EnableIRQ(TIM14_IRQn);
@@ -803,8 +803,15 @@ uint32_t set_motor2_pwm(const int32_t required_duty_cycle_coefficient)
 }
 
 
+int16_t get_motor1_encoder_value(void)
+{
+	return TIM2->CNT;
+}
 
-
+int16_t get_motor2_encoder_value(void)
+{
+	return TIM3->CNT;
+}
 
 void blink(void)
 {

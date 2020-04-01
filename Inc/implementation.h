@@ -279,7 +279,8 @@ void gpioc6_high(void);
 uint32_t set_motor1_pwm(const int32_t required_duty_cycle_coefficient);
 uint32_t set_motor2_pwm(const int32_t required_duty_cycle_coefficient);
 
-
+int16_t get_motor1_encoder_value(void);
+int16_t get_motor2_encoder_value(void);
 
 /*** Completely random value to determine the waiting-state length ***/
 #define DUMMY_DELAY_VALUE 10000
