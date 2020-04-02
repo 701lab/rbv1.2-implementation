@@ -2,11 +2,11 @@
 
 ![version](https://img.shields.io/github/v/release/701lab/rbv1.2-implementation?color=blue&label=Version)
 
-This repo can be used as a template for developing applications on robots board v1.2 without deep diving into hardware setups.
+This repo can be used as a template for developing applications on **robots board v1.2** without deep diving into hardware setups.
 
 **Robots board** v1.2 is a cost affective board to implement differential drive robots, for example, balancing robot. It uses stm32g071cbu MCU, DRV8848 motor driver to control two small  BDC motors with encoders, ICM-20600 3-axis gyroscope and accelerometer, and NRF24l01+ as a radio module. CAD files of the board can be downloaded [here](https://github.com/701lab/Robots-Board-v1.2-CAD-files).
 
-Implementation library serves three main goals:
+#### Implementation library serves three main goals:
 1. Provides user with methods to setup all used in device peripherals: system clock, GPIO, timers, etc.
 2. Provides user with methods for self-diagnostics of the device and error handling.
 3. Provides user with basic data transmitting methods for all interfaces that are used in the design.
