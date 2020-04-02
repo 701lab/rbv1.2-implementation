@@ -91,17 +91,22 @@ uint32_t motors_rotation_deiraction_test (motor *motor_instance)
 	for(int i = 0; i < 1000000; ++i);
 
 	motor_instance->motor_disable();
+	motor_instance->set_pwm_duty_cycle(0);
 
 	int16_t new_current_encoder_counter_value = motor_instance->get_encoder_counter_value();
 
-	if (new_current_encoder_counter_value - current_encoder_counter_value <= 0)
+	if (new_current_encoder_counter_value - current_encoder_counter_value < 0)
 	{
 		return 1;
 	}
+	else if (new_current_encoder_counter_value == current_encoder_counter_value)
+	{
+		return 2;
+	}
 
 	return 0;
-
 }
+
 
 float motors_get_position(motor *motor_instance)
 {

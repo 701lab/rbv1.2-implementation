@@ -50,6 +50,6 @@ void enablePype(uint8_t pypeAddress[5],uint32_t pipeNum);
 void nrf24_send_data(const void *data, uint32_t PayloadSize, int no_ack);
 
 uint8_t dataAvailiable(void);//-
-	void readData(void* data, uint32_t PayloadSize);
+void readData(void* data, uint32_t PayloadSize);
 
 #endif /* NRF24L01_PLUS_H_ */

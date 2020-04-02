@@ -3,9 +3,7 @@
 #define VAR_DECLS
 
 #include "implementation.h"
-#include "icm-20600.h"
-#include "nrf24l01.h"
-#include "motors.h"
+#include "device.h"
 
 int16_t icm_data[6] = { 0, 0, 0, 0, 0, 0 };
 
@@ -62,10 +60,12 @@ speed_control motor2_speed_cotroller =
 					.current_speed = 0.0f
 			};
 
+icm_20600_instance robot_imu;
 
 
 int main(void)
 {
+
 	motor1.motor_disable = gpioc6_low;
 	motor1.motor_enable = gpioc6_high;
 	motor1.set_pwm_duty_cycle = set_motor1_pwm;
@@ -80,20 +80,28 @@ int main(void)
 	motor2.get_encoder_counter_value = get_motor2_encoder_value;
 	motor2.speed_controller = &motor2_speed_cotroller;
 
+	robot_imu.cs_high = gpiob12_high;
+	robot_imu.cs_low = gpiob12_low;
+	robot_imu.send_one_byte = spi2_write_single_byte;
 
-	full_device_setup();
+
+
+	full_device_setup(no);
 
 
 	// Enables both motors
-	motor1.motor_enable();
+//	motor1.motor_enable();
 
 
 	basic_spi1_setup(5000000);
-//
-//	icm_20600_instance robot_imu =
-//				{ robot_imu.cs_high = gpiob12_high,
-//				robot_imu.cs_low = gpiob12_low,
-//				robot_imu.send_one_byte = spi2_write_single_byte };
+	basic_spi2_setup(5000000);
+	nrf24_basic_init();
+
+
+
+	device_self_diagnosticks(&robot_imu, &motor1, &motor2);
+
+
 //
 //
 //	 if( icm_20600_check_if_alive(&robot_imu))
@@ -106,51 +114,13 @@ int main(void)
 
 //	icm_20600_setup(&robot_imu, icm_gyro_2000dps, icm_accel_16g);
 
-	nrf24_basic_init();
 
 //	TIM1->CCR4 = PWM_PRECISION/2;
 
 	while(1){
 
-		motor1.position_controller->target_position = 10.0f;
-		delay_in_milliseconds(50000000);
 
-		motor1.position_controller->target_position = 0.0f;
-		delay_in_milliseconds(50000000);
-
-//		icm_20600_get_sensors_data(&robot_imu, icm_data, 0);
-
-//		motor1.speed_controller->target_speed = 0.5;
-//		delay_in_milliseconds(10000000);
-//
-//
-//		motor1.speed_controller->target_speed = 1.5;
-//		delay_in_milliseconds(10000000);
-//
-//		motor1.speed_controller->target_speed = 2.5;
-//		delay_in_milliseconds(10000000);
-//
-//		motor1.speed_controller->target_speed = 1.5;
-//		delay_in_milliseconds(10000000);
-//
-//		motor1.speed_controller->target_speed = 0.5;
-//		delay_in_milliseconds(10000000);
-//
-//		motor1.speed_controller->target_speed = -0.5;
-//		delay_in_milliseconds(10000000);
-//
-//		motor1.speed_controller->target_speed = -1.5;
-//		delay_in_milliseconds(10000000);
-//
-//		motor1.speed_controller->target_speed = -0.5;
-//		delay_in_milliseconds(10000000);
-
-
-//		motor1.set_pwm_duty_cycle(PWM_PRECISION/2);
-//
-//		motor1.set_pwm_duty_cycle(PWM_PRECISION);
-
-
+		delay_in_milliseconds(1000000);
 		GPIOD->ODR ^= 0x03;
 //		blink();
 	}
@@ -168,19 +138,19 @@ void SysTick_Handler()
 {
 	++control_systems_counter;
 
-	if(control_systems_counter%10 == 0)	// 20 раз в секунду
-	{
-		motors_get_speed_by_incements(&motor1, system_time_increment * 10.0f);
-		float speed_task = motors_speed_controller_handler(&motor1, system_time_increment * 10.0f);
-		motor1.set_pwm_duty_cycle((int32_t)speed_task);
-	}
-
-
-	if(control_systems_counter%20 == 0)
-	{
-		motors_get_position(&motor1);
-		motor1.speed_controller->target_speed = motors_position_controller_handler(&motor1);
-	}
+//	if(control_systems_counter%10 == 0)	// 20 раз в секунду
+//	{
+//		motors_get_speed_by_incements(&motor1, system_time_increment * 10.0f);
+//		float speed_task = motors_speed_controller_handler(&motor1, system_time_increment * 10.0f);
+//		motor1.set_pwm_duty_cycle((int32_t)speed_task);
+//	}
+//
+//
+//	if(control_systems_counter%20 == 0)
+//	{
+//		motors_get_position(&motor1);
+//		motor1.speed_controller->target_speed = motors_position_controller_handler(&motor1);
+//	}
 
 
 	if(control_systems_counter == 200)

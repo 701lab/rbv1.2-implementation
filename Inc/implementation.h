@@ -35,7 +35,7 @@
 
 	Determines control system outer loop frequency
  */
-#define SYSTICK_FREQUENCY			200		// Hz
+#define SYSTICK_FREQUENCY			20		// Hz
 
 //****** End of User-adjustable defines ******//
 
@@ -70,7 +70,7 @@ void add_to_mistakes_log(uint32_t mistake_code);
 
 
 // @brief Sets up all desired device peripherals
-void full_device_setup(void);
+void full_device_setup(uint32_t should_inclued_interfaces);
 
 /*
 	@brief	Enables UART 1 with given baud rate with TX and RX enable
@@ -114,10 +114,6 @@ uint8_t spi2_write_single_byte(const uint8_t byte_to_be_sent);
 
 
 
-uint32_t imu_diagnostic(void);
-
-uint32_t radio_module_diagnostic(void);
-
 //**************************************//
 //****** User-adjustable typedefs ******//
 //**************************************//
@@ -145,9 +141,13 @@ void gpio_setup(void);
 void timers_setup(void);
 
 
+
+
+
+
 uint32_t adc_setup(void);
 
-uint32_t intrfaces_setup(void);
+void intrfaces_setup(void);
 
 uint32_t safe_setup(void);
 
@@ -227,6 +227,13 @@ _DECL uint32_t time_from_log_enable_in_minutes _INIT(0);
 
 #endif /* VAR_DEFS */
 /******************************************/
+
+
+enum question_answers
+{
+	no = 0,
+	yes = 1
+};
 
 
 //*** GPIO setup defines ***//

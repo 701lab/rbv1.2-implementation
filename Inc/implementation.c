@@ -533,7 +533,7 @@ void basic_spi1_setup(uint32_t transmittion_speed_in_hz)
 	// 10 Mhz is standard high SPI speed, so in general, we should not use higher speeds. If input speed is greater than 10Mhz set it to 5Mhz and write input mistake to log
 	if(transmittion_speed_in_hz > 10000000)
 	{
-		add_to_mistakes_log(WRONG_SPI_FREQUENCY_INPUT);
+		add_to_mistakes_log(WRONG_SPI1_FREQUENCY_INPUT);
 		transmittion_speed_in_hz = 5000000;
 	}
 
@@ -580,7 +580,7 @@ uint8_t spi1_write_single_byte(const uint8_t byte_to_be_sent)
 		++safety_delay_counter;
 		if ( safety_delay_counter > DUMMY_DELAY_VALUE )
 		{
-			add_to_mistakes_log(SPI_TRANSMISSION_FAIL);
+			add_to_mistakes_log(SPI1_TRANSMISSION_FAIL);
 			return 0;
 		}
 	}
@@ -604,7 +604,7 @@ void basic_spi2_setup(uint32_t transmittion_speed_in_hz)
 	// 10 Mhz is standard high SPI speed, so in general, we should not use higher speeds. If input speed is greater than 10Mhz set it to 5Mhz and write input mistake to log
 	if(transmittion_speed_in_hz > 10000000)
 	{
-		add_to_mistakes_log(WRONG_SPI_FREQUENCY_INPUT);
+		add_to_mistakes_log(WRONG_SPI2_FREQUENCY_INPUT);
 		transmittion_speed_in_hz = 5000000;
 	}
 
@@ -642,7 +642,7 @@ uint8_t spi2_write_single_byte(const uint8_t byte_to_be_sent)
 		++safety_delay_counter;
 		if ( safety_delay_counter > DUMMY_DELAY_VALUE )
 		{
-			add_to_mistakes_log(SPI_TRANSMISSION_FAIL);
+			add_to_mistakes_log(SPI2_TRANSMISSION_FAIL);
 			return 0;
 		}
 	}
@@ -659,9 +659,23 @@ uint8_t spi2_write_single_byte(const uint8_t byte_to_be_sent)
 	return SPI2->DR;
 }
 
+/*
+	@brief Sets up all interfaces with default speed values
+ */
+void intrfaces_setup(void)
+{
+
+	basic_spi1_setup(5000000);
+
+	basic_spi2_setup(5000000);
+
+	basic_uart1_setup(9600);
+
+}
 
 
-void full_device_setup(void)
+
+void full_device_setup(uint32_t should_inclued_interfaces)
 {
 
 	system_clock_setup();
@@ -670,8 +684,16 @@ void full_device_setup(void)
 
 	timers_setup();
 
+	if(should_inclued_interfaces == yes)
+	{
+		intrfaces_setup();
+	}
+
 	return;
 }
+
+
+
 
 //void TIM15_IRQHandler()
 //{
@@ -739,7 +761,7 @@ uint32_t set_motor1_pwm(const int32_t required_duty_cycle_coefficient)
 			TIM1->CCR3 = max_duty_cycle;
 			TIM1->CCR4 = 0;
 
-			return PWM_TASK_LOWER_THAN_MINIMUM;
+			return M1_PWM_TASK_LOWER_THAN_MINIMUM;
 		}
 		else {						// PWM task is negative and less than maximum -> set task PWM in reverse direction
 			TIM1->CCR3 = max_duty_cycle;
@@ -753,7 +775,7 @@ uint32_t set_motor1_pwm(const int32_t required_duty_cycle_coefficient)
 			TIM1->CCR4 = max_duty_cycle;
 			TIM1->CCR3 = 0;
 
-			return PWM_TASK_HIGHER_THAN_MAXIMUM;
+			return M1_PWM_TASK_HIGHER_THAN_MAXIMUM;
 		}
 		else						// PWM task is positive and less than maximum -> set maximum PWM in forward direction
 		{
@@ -776,7 +798,7 @@ uint32_t set_motor2_pwm(const int32_t required_duty_cycle_coefficient)
 			TIM1->CCR2 = max_duty_cycle;
 			TIM1->CCR1 = 0;
 
-			return PWM_TASK_LOWER_THAN_MINIMUM;
+			return M2_PWM_TASK_LOWER_THAN_MINIMUM;
 		}
 		else {						// PWM task is negative and less than maximum -> set task PWM in reverse direction
 			TIM1->CCR2 = max_duty_cycle;
@@ -790,7 +812,7 @@ uint32_t set_motor2_pwm(const int32_t required_duty_cycle_coefficient)
 			TIM1->CCR1 = max_duty_cycle;
 			TIM1->CCR2 = 0;
 
-			return PWM_TASK_HIGHER_THAN_MAXIMUM;
+			return M2_PWM_TASK_HIGHER_THAN_MAXIMUM;
 		}
 		else						// PWM task is positive and less than maximum -> set maximum PWM in forward direction
 		{
