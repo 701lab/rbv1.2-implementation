@@ -12,13 +12,13 @@ This repo can be used as a template for developing applications on **robots boar
 3. Provides user with basic data transmitting methods for all interfaces that are used in the design.
 
 ## This repo Contains
-* implimentation.h and .c files with all implementation dependent methods;
-* device.h and .c file for firmware functions;
-* bunch of libraries needed for easyer develompment with robots board:
-  * icm-20600 implementation independent library;
-  * nrf24l01+ implementation independent library;
-  * implementation independent library for dc motor control;
-* main.c file with all basic setups and initializations for fast start of development.
+* implementation.h and .c files with all implementation-dependent functions;
+* device.h and .c file for user firmware development;
+* bunch of libraries needed for easier development with robots board:
+  * icm-20600 implementation-independent library;
+  * nrf24l01+ implementation-independent library;
+  * implementation-independent library for dc motor control;
+* main.c file with all basic setups and initializations for the fast start of development.
 
 ## How to use
 * clone this repo and add all files into you new robots board v1.2 project;
