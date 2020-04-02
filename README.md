@@ -27,5 +27,3 @@ This repo can be used as a template for developing applications on **robots boar
 * look through all .h files to understand what functions are already available and how to use them;
 * start development.
 
-### Todo
-- [ ] add link to robots board files into readme. 
