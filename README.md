@@ -8,7 +8,7 @@ Serves three main goals:
 2. Provides user with methods for self-diagnostics of the device and error handling.
 3. Provides user with basic data transmitting methods for all interfaces that are used in the design.
 
-**Robots board** v1.2 is a cost affective board to implement differential drive robots, for example, balancing robot. It uses stm32g071cbu MCU, DRV8848 motor driver to control two small  BDC motors with encoders, ICM-20600 3-axis gyroscope and accelerometer, and NRF24l01+ as a radio module. For more information about the board see: [add link to purhase site or/and build files]
+**Robots board** v1.2 is a cost affective board to implement differential drive robots, for example, balancing robot. It uses stm32g071cbu MCU, DRV8848 motor driver to control two small  BDC motors with encoders, ICM-20600 3-axis gyroscope and accelerometer, and NRF24l01+ as a radio module. CAD files of the board can be downloaded [here](https://github.com/701lab/Robots-Board-v1.2-CAD-files).
 
 ## This repo Contains
 * implimentation.h and .c files with all implementation dependent methods;
