@@ -34,9 +34,7 @@
 	USART:
 		PB6-7 - TX and RX respectively (USART1, alternate function 0).
 
-	TIM14 - high speed counter for time calculations;
-	TODO: нужно изучить, как запускаются часы реального времени и наверное использовать для вычисления времени их. Хотят тут станет вопрос, что такие часы могут
-	быть не совсем надежными и все же будет оправданно использовать один из таймеров вместо часов реального времени.
+	TIM14 - counts time with 0.1 ms precision for mistakes log
 
 	TIM15 - high speed counter for precise speed calculations.
 
@@ -427,7 +425,7 @@ void timers_setup(void)
 {
 	//*** Timers peripheral clock enable ***//
 	RCC->APBENR1 |= RCC_APBENR1_TIM2EN | RCC_APBENR1_TIM3EN;
-	RCC->APBENR2 |= RCC_APBENR2_TIM1EN | RCC_APBENR2_TIM14EN;
+	RCC->APBENR2 |= RCC_APBENR2_TIM1EN | RCC_APBENR2_TIM14EN | RCC_APBENR2_TIM16EN;
 //	RCC->APBENR2 |= RCC_APBENR2_TIM1EN | RCC_APBENR2_TIM14EN | RCC_APBENR2_TIM15EN;
 
 	//*** TIM1 PWM setup ***//
@@ -439,11 +437,10 @@ void timers_setup(void)
 	TIM1->CR1 |= TIM_CR1_ARPE;	// Enable Auto reload preload
 	TIM1->BDTR |= TIM_BDTR_MOE;	// Main output enable
 	TIM1->CR1 |= TIM_CR1_CEN; // Enable timer
-
-//	TIM1->CCR1 = PWM_PRECISION;
-//	TIM1->CCR2 = PWM_PRECISION;
-//	TIM1->CCR3 = PWM_PRECISION;
-//	TIM1->CCR4 = PWM_PRECISION;
+	TIM1->CCR1 = PWM_PRECISION;
+	TIM1->CCR2 = PWM_PRECISION;
+	TIM1->CCR3 = PWM_PRECISION;
+	TIM1->CCR4 = PWM_PRECISION;
 
 	//*** Timer2 encoder setup ***//
 	TIM2->ARR = 65535; 		// 2^16-1 - maximum value for this timer. No prescaler, so timer is working with max speed
@@ -473,6 +470,14 @@ void timers_setup(void)
 //		TIM15->ARR = 65535; 	// 2^16-1 - maximum value for this timer, so program should have minimum 16 speed calculations per second not to loose data
 //		TIM15->CNT = 0;			// Clear counter before start
 //		TIM15->CR1 |= TIM_CR1_CEN;
+
+	//*** TIM16 setup ***//
+	// Used to count millisecond for speed calculations
+	TIM16->PSC |= (uint32_t)(SYSCLK_FREQUENCY / 1000 - 1); 	// One millisecond step
+	TIM16->CNT = 0;			// Clear counter before start
+	TIM16->DIER |= TIM_DIER_UIE;
+	NVIC_EnableIRQ(TIM16_IRQn);
+	TIM16->CR1 |= TIM_CR1_OPM;	// One pulse mode. Counter don't need to be started
 
 	//*** System timer setup ***//
 	SysTick->LOAD = SYSCLK_FREQUENCY / (8 * SYSTICK_FREQUENCY) - 1;
@@ -835,17 +840,21 @@ int16_t get_motor2_encoder_value(void)
 	return TIM3->CNT;
 }
 
-void blink(void)
-{
-	GPIOD->ODR ^= 0x0F;
-	delay_in_milliseconds(1000000);
-	GPIOD->ODR ^= 0x0F;
-	delay_in_milliseconds(1000000);
 
+void TIM16_IRQHandler()
+{
+	TIM16->SR &= ~TIM_SR_UIF;
+	delay_is_finished = yes;
 }
 
-void delay_in_milliseconds(const uint32_t time_in_millisecond){
-	// Temporary implementation
-	for(uint32_t iterator = 0; iterator < time_in_millisecond; ++iterator);
+
+
+void delay_in_milliseconds(const uint16_t time_in_millisecond){
+//	for(uint32_t iterator = 0; iterator < time_in_millisecond; ++iterator);
+	TIM16->ARR = time_in_millisecond-1;
+	TIM16->CR1 |= TIM_CR1_CEN;
+	delay_is_finished = 0;
+	while(delay_is_finished == no){}
+
 }
 

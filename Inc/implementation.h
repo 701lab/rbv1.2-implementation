@@ -35,55 +35,40 @@
 
 	Determines control system outer loop frequency
  */
-#define SYSTICK_FREQUENCY			20		// Hz
+#define SYSTICK_FREQUENCY			40		// Hz
 
-//****** End of User-adjustable defines ******//
-
-//*** Mistakes log definition ***//
 /*
- 	Пока я тут не начал разводить мемуары коментариев, которые потом приедтся переписывать запишу то, как надо попробовать реализовать
-
 	@brief Mistakes log is used to collect mistakes codes during runtime
 
 	Log can be sent by any available interface during runtime to debug the system.
 
-	@note To provide a consistency log should be implemented in the main.c file and is used only there.
-
-	TODO: @idea	It will be good to have EEPROM on every device so we can store mistakes log there
+v	TODO: @idea	It will be good to have EEPROM on every device so we can store mistakes log there
 
 	TODO: It will be good to implement some type of black box: way to permanently store log with system parameters for the last couple of hours at least: EEPROM won't suffice
  */
 #define MISTAKES_LOG_SIZE			50
 
+//****** End of User-adjustable defines ******//
 
-///!!!!!!
-#define ICM_THROUGH_SPI
 
 //****************************//
 //****** User functions ******//
 //****************************//
 // @brief Can be called in the code by the programmer while developing applications.
 
-// @brief Makes log entry with given mistake code at current time
+
+/*
+	@brief Makes log entry with given mistake code at current time
+ */
 void add_to_mistakes_log(uint32_t mistake_code);
 
-
-
-// @brief Sets up all desired device peripherals
+/*
+	@brief Sets up all desired device peripherals
+ */
 void full_device_setup(uint32_t should_inclued_interfaces);
 
 /*
-	@brief	Enables UART 1 with given baud rate with TX and RX enable
-
-	Leaves all other parameters unchanged (the most basic UART configuration). So UART parameters are:
-	> transmission speed = @param[in] transmission_speed_in_bauds;
-	> 8 Data bits
-	> 1 stop bit
-	> parity control disabled
-	> no interrupts are enbabled
-	> no DMA
-	> FIFO disabled
-	> etc (not advanced features at all)
+	@brief	Enables UART 1 with a given baud rate with TX and RX enable and default setting in everything else
  */
 void basic_uart1_setup(const uint32_t transmission_speed_in_bauds);
 
@@ -113,65 +98,95 @@ void basic_spi2_setup(uint32_t transmittion_speed_in_hz);
 uint8_t spi2_write_single_byte(const uint8_t byte_to_be_sent);
 
 
-
-//**************************************//
-//****** User-adjustable typedefs ******//
-//**************************************//
-// @brief All needed typdefs should be implemented here
-
-
 //********************************//
 //****** Non-User functions ******//
 //********************************//
-//	@brief	Called only by the system when needed. Should not be used in the application code
+/*
+	@brief	Called only by the system when needed. Should not be used in the application code
+ */
 
-// @brief	Sets up SYSCLK to SYSCLK_FREQUENCY with taking into account problems with different sources
+/*
+	@brief	Sets up SYSCLK to SYSCLK_FREQUENCY with taking into account problems with different sources
+ */
 uint32_t system_clock_setup(void);
 
-// @brief	Sets up PLL with respect to input source and SYSCLK_FREQUENCY
+/*
+	@brief	Sets up PLL with respect to input source and SYSCLK_FREQUENCY
+ */
 uint32_t pll_setup(uint32_t is_HSE_clock_source);
 
-// @brief	Non-maskable interrupt handler. Called when HSE fails. Tries to start SYSCLK with PLL with HSI as a clock source.
-void NMI_Handler();
-
-// @brief	Sets up GPIO for all needed on device functions
+/*
+	@brief Sets up GPIO for all needed on device functions
+ */
 void gpio_setup(void);
 
-// @brief	Sets up all used on the board timers and enables desired interrupts
+/*
+	@brief Sets up all used on the board timers and enables desired interrupts
+ */
 void timers_setup(void);
 
-
-
-
-
-
-uint32_t adc_setup(void);
-
+/*
+	@brief Sets all interfaces with default transmission rates
+ */
 void intrfaces_setup(void);
-
-uint32_t safe_setup(void);
-
-// TODO: Если необходимо настроить прерывание для какой либо периферии, которая в теории может быть уже включена. Необходимо убедиться, что данная периферия
-// 	Сначала будет выключена
-uint32_t interrupt_setup(void);
-
-
-
 
 /*
 	@brief TIM14 overflow interrupt handler - counts minutes from enable of mistakes log.
  */
 void TIM14_IRQHandler();
 
+/*
+	@brief Makes program stop for given duration
+ */
+void delay_in_milliseconds(const uint16_t time_in_millisecond);
 
+/*
+	@brief Resets program blocking value after overflow
+ */
+void TIM16_IRQHandler();
 
-//*** Blinks led if
+//****** DRV8848 ******//
+/*
+	GPIOC6 - nSleep pin of motor driver
+ */
+void gpioc6_low(void);
+void gpioc6_high(void);
 
-void blink(void);
+/*
+	@brief Sets PWM duty cycle for motor 1 or motor 2 PWM channels
+ */
+uint32_t set_motor1_pwm(const int32_t required_duty_cycle_coefficient);
+uint32_t set_motor2_pwm(const int32_t required_duty_cycle_coefficient);
 
-void delay_in_milliseconds(const uint32_t time_in_millisecond);
+/*
+	@brief Returns motor-related encoder counter value. TIM2 for motor1 and TIM3 for motor 2
+ */
+int16_t get_motor1_encoder_value(void);
+int16_t get_motor2_encoder_value(void);
 
-void delay(const uint32_t time_in_milliseconds);
+//****** NRF24L01+ ******//
+#define NRF24_CSN_HIGH 			GPIOB->BSRR	|=	GPIO_BSRR_BS1;
+#define NRF24_CSN_LOW  			GPIOB->BSRR |=	GPIO_BSRR_BR1;
+#define NRF24_CE_HIGH	 		GPIOB->BSRR	|=	GPIO_BSRR_BS0;
+#define NRF24_CE_LOW 	 		GPIOB->BSRR	|=	GPIO_BSRR_BR0;
+#define nrf24_spi_write			spi1_write_single_byte
+
+void gpiob1_high(void);
+void gpiob1_low(void);
+void gpiob0_high(void);
+void gpiob0_low(void);
+
+//****** ICM-20600 ******//
+/*
+	GPIOB12 - chip enable
+	For icm-20600 library ICM_THROUGH_SPI or ICM_THROUGH_I2C should be defined
+ */
+void gpiob12_high(void);
+void gpiob12_low(void);
+
+#define ICM_THROUGH_SPI
+//#define ICM_THROUGH_I2C
+
 
 //****************************************//
 //****** Non user-adjustable defines ******//
@@ -225,16 +240,16 @@ _DECL uint32_t mistakes_log_pointer _INIT(0);
 _DECL uint32_t critical_mistake_detected _INIT(0);		/* will be 1 - if there were a critical mistake. System should be stopped. All performance critical objects should be returned to safe state and be deactivated */
 _DECL uint32_t time_from_log_enable_in_minutes _INIT(0);
 
+_DECL uint32_t delay_is_finished _INIT(0);
+
 #endif /* VAR_DEFS */
 /******************************************/
-
 
 enum question_answers
 {
 	no = 0,
 	yes = 1
 };
-
 
 //*** GPIO setup defines ***//
 #define GPIO_MODER_MSK			(3U) 	//0x11
@@ -260,34 +275,6 @@ enum question_answers
 //*** HSE state defines ***//
 #define HSE_IS_OK 		1
 #define HSE_IS_NOT_OK 	0
-
-//*** NRF24L01+ defines ***//
-#define NRF24_CSN_HIGH 			GPIOB->BSRR	|=	GPIO_BSRR_BS1;
-#define NRF24_CSN_LOW  			GPIOB->BSRR |=	GPIO_BSRR_BR1;
-#define NRF24_CE_HIGH	 		GPIOB->BSRR	|=	GPIO_BSRR_BS0;
-#define NRF24_CE_LOW 	 		GPIOB->BSRR	|=	GPIO_BSRR_BR0;
-#define nrf24_spi_write			spi1_write_single_byte
-
-void gpiob1_high(void);
-void gpiob1_low(void);
-void gpiob0_high(void);
-void gpiob0_low(void);
-
-
-//*** ICM-20600 defines ***//
-void gpiob12_high(void);
-void gpiob12_low(void);
-
-//*** DRV8848 defines ***//
-void gpioc6_low(void);
-void gpioc6_high(void);
-
-
-uint32_t set_motor1_pwm(const int32_t required_duty_cycle_coefficient);
-uint32_t set_motor2_pwm(const int32_t required_duty_cycle_coefficient);
-
-int16_t get_motor1_encoder_value(void);
-int16_t get_motor2_encoder_value(void);
 
 /*** Completely random value to determine the waiting-state length ***/
 #define DUMMY_DELAY_VALUE 10000

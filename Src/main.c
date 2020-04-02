@@ -1,3 +1,12 @@
+/*
+	@file main.c
+
+	@version 1.0
+
+	@brief This file contains all basic setups for robots board v1.2 and should be used for firmware development for devices using robots board v1.2 as a control board.
+			All unnecessary declarations can be deleted during development
+ */
+
 
 // For global variables declareation
 #define VAR_DECLS
@@ -6,8 +15,7 @@
 #include "device.h"
 
 int16_t icm_data[6] = { 0, 0, 0, 0, 0, 0 };
-
-uint8_t icm_test_data[4] = { 0, 0, 0, 0 };
+float nrf_data[3] = {1.0f, 2.0f, 3.0f};
 
 uint32_t control_systems_counter = 0;
 float	system_time_increment = 1.0f/SYSTICK_FREQUENCY;
@@ -26,8 +34,6 @@ motor motor2 =
 
 speed_control motor1_speed_cotroller =
 			{
-					.kp = 1000.0f,
-					.ki = 5000.0f,
 					.current_integral = 0.0f,
 					.controller_output_limitation_value = PWM_PRECISION,
 					.previous_encoder_counter_value = 0,
@@ -39,7 +45,6 @@ speed_control motor1_speed_cotroller =
 
 position_control motor1_position_controller =
 			{
-					.kp = 1.0f,
 					.current_position = 0.0f,
 					.previous_encoder_counter_value = 0.0f,
 					.regulator_control_signal = 0.0f,
@@ -49,8 +54,6 @@ position_control motor1_position_controller =
 
 speed_control motor2_speed_cotroller =
 			{
-					.kp = 200.0f,
-					.ki = 7000.0f,
 					.current_integral = 0.0f,
 					.controller_output_limitation_value = PWM_PRECISION,
 					.previous_encoder_counter_value = 0,
@@ -58,6 +61,14 @@ speed_control motor2_speed_cotroller =
 					.target_speed = 0.0f,
 					.regulator_control_signal = 0.0f,
 					.current_speed = 0.0f
+			};
+
+position_control motor2_position_controller =
+			{
+					.current_position = 0.0f,
+					.previous_encoder_counter_value = 0.0f,
+					.regulator_control_signal = 0.0f,
+					.target_position = 0.0f,
 			};
 
 icm_20600_instance robot_imu;
@@ -72,6 +83,9 @@ int main(void)
 	motor1.get_encoder_counter_value = get_motor1_encoder_value;
 	motor1.speed_controller = &motor1_speed_cotroller;
 	motor1.position_controller = &motor1_position_controller;
+	motor1_speed_cotroller.kp = 200.0f;
+	motor1_speed_cotroller.ki = 5000.0f;
+	motor1_position_controller.kp = 1.0f;
 	motor1_position_controller.position_precision = 8.0f/motor1.encoder_constant;
 
 	motor2.motor_disable = gpioc6_low;
@@ -79,83 +93,65 @@ int main(void)
 	motor2.set_pwm_duty_cycle = set_motor2_pwm;
 	motor2.get_encoder_counter_value = get_motor2_encoder_value;
 	motor2.speed_controller = &motor2_speed_cotroller;
+	motor2.position_controller = &motor2_position_controller;
+	motor2_speed_cotroller.kp = 200.0f;
+	motor2_speed_cotroller.ki = 5000.0f;
+	motor2_position_controller.kp = 1.0f;
+	motor2_position_controller.position_precision = motor1_position_controller.position_precision;
 
 	robot_imu.cs_high = gpiob12_high;
 	robot_imu.cs_low = gpiob12_low;
 	robot_imu.send_one_byte = spi2_write_single_byte;
 
-
-
 	full_device_setup(no);
 
-
 	// Enables both motors
-//	motor1.motor_enable();
-
+	motor1.motor_enable();
 
 	basic_spi1_setup(5000000);
 	basic_spi2_setup(5000000);
 	nrf24_basic_init();
+	icm_20600_basic_init(&robot_imu, 0);
 
+	motor1.speed_controller->target_speed = 1.0f;
+	motor2.speed_controller->target_speed = 1.0f;
 
+	while(1)
+	{
 
-	device_self_diagnosticks(&robot_imu, &motor1, &motor2);
+		icm_20600_get_sensors_data(&robot_imu, icm_data, no);
+		nrf24_send_data(nrf_data, 12, yes);
 
-
-//
-//
-//	 if( icm_20600_check_if_alive(&robot_imu))
-//	 {
-//		 add_to_mistakes_log(23);
-//	 }
-
-
-//	icm_20600_basic_init(&robot_imu, 0);
-
-//	icm_20600_setup(&robot_imu, icm_gyro_2000dps, icm_accel_16g);
-
-
-//	TIM1->CCR4 = PWM_PRECISION/2;
-
-	while(1){
-
-
-		delay_in_milliseconds(1000000);
-		GPIOD->ODR ^= 0x03;
-//		blink();
+		delay_in_milliseconds(1000);
+		GPIOD->ODR ^= 0x01;
 	}
 }
-
-/*
-	@brief	System counter interrupt handler - place for all control logic code
- */
-//void SysTick_Handler()
-//{
-//	__NOP();
-//}
 
 void SysTick_Handler()
 {
 	++control_systems_counter;
 
-//	if(control_systems_counter%10 == 0)	// 20 раз в секунду
-//	{
-//		motors_get_speed_by_incements(&motor1, system_time_increment * 10.0f);
-//		float speed_task = motors_speed_controller_handler(&motor1, system_time_increment * 10.0f);
-//		motor1.set_pwm_duty_cycle((int32_t)speed_task);
-//	}
-//
-//
-//	if(control_systems_counter%20 == 0)
-//	{
-//		motors_get_position(&motor1);
-//		motor1.speed_controller->target_speed = motors_position_controller_handler(&motor1);
-//	}
-
-
-	if(control_systems_counter == 200)
+	// Speed control handling
+	if(control_systems_counter%2 == 0)	// 20 time per second
 	{
-		GPIOD->ODR ^= 0x03;
+		motors_get_speed_by_incements(&motor1, system_time_increment * 2.0f);
+		motors_get_speed_by_incements(&motor2, system_time_increment * 2.0f);
+		float m1_speed_task = motors_speed_controller_handler(&motor1, system_time_increment * 2.0f);
+		float m2_speed_task = motors_speed_controller_handler(&motor2, system_time_increment * 2.0f);
+		motor1.set_pwm_duty_cycle((int32_t)m1_speed_task);
+		motor2.set_pwm_duty_cycle((int32_t)m2_speed_task);
+	}
+
+	// Position control handling
+	if(control_systems_counter%4 == 0)	// 10 times per second
+	{
+		motors_get_position(&motor1);
+		motor1.speed_controller->target_speed = motors_position_controller_handler(&motor1);
+	}
+
+	if(control_systems_counter == 20)
+	{
+		GPIOD->ODR ^= 0x08;
 		control_systems_counter = 0;
 	}
 }
