@@ -4,6 +4,51 @@
 #include "implementation.h"
 #include "nrf24l01_registers.h"
 
+//** Place for development of new library which will fully replace the old one. Work in progress so far. **//
+
+/*
+	@brief Main structure which fully describes nrf24l01+ instance.
+ */
+typedef struct
+{
+//	// @brief Activates the device from power down.
+//	void (*power_up)(void);
+//
+//	// @brief Puts device to power down from whatever state it was in.
+//	void (*power_down)(void);
+
+	// @brief Chip select high. Used in SPI communication to indicate the end of the transition.
+	void (*cs_high)(void);
+
+	// @brief Chip select low. Used in SPI communication to indicate the start of the transition.
+	void (*cs_low)(void);
+
+	// @brief
+	void (*csn_high)(void);
+
+	// @brief
+	void (*csn_low)(void);
+
+
+} nrf24l01p;
+
+enum nrf24l01_baud_rates
+{
+	asdfasd,
+	asdfasdfa
+};
+
+
+
+uint32_t power_up(nrf24l01p * nrf24_instance);
+uint32_t fast_power_down(nrf24l01p * nrf24_instance);
+uint32_t safe_power_down(nrf24l01p * nrf24_instance);
+
+
+//*********************************************************************************************************//
+
+
+
 //hardware based defines: 
 /*
 	In this section happaens all the define magic, so that NRF24 can work properly. Also you need not to forgot to setup needed 
