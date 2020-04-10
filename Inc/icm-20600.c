@@ -10,7 +10,7 @@ uint32_t icm_20600_basic_init(const icm_20600_instance *icm_instance,
 
 	icm_instance->cs_low();
 
-	icm_instance->send_one_byte(ICM_PWR_MGMT_1 | ICM_WRITE);
+	icm_instance->send_one_byte(ICM_PWR_MGMT_1 | ICM_WRITE_REGISTERS);
 	if ( enable_temperature_sensor )
 	{
 		// Wakes up. Doen't disable temperature sensor
@@ -27,7 +27,7 @@ uint32_t icm_20600_basic_init(const icm_20600_instance *icm_instance,
 	icm_instance->cs_low();
 
 	// Disable I2C interface
-	icm_instance->send_one_byte(ICM_I2C_IF | ICM_WRITE);
+	icm_instance->send_one_byte(ICM_I2C_IF | ICM_WRITE_REGISTERS);
 	icm_instance->send_one_byte(ICM_I2C_IF_DISABLE);
 
 	// Reset SPI connection
@@ -35,7 +35,7 @@ uint32_t icm_20600_basic_init(const icm_20600_instance *icm_instance,
 	icm_instance->cs_low();
 
 	// Check if connection is established
-	icm_instance->send_one_byte(ICM_WHO_AM_I | ICM_READ);
+	icm_instance->send_one_byte(ICM_WHO_AM_I | ICM_READ_REGISTERS);
 	if ( icm_instance->send_one_byte(0xff) == 0 )
 	{
 		icm_instance->cs_high();
@@ -65,7 +65,7 @@ uint32_t icm_20600_get_sensors_data(const icm_20600_instance *icm_instance,
 	icm_instance->cs_low();
 
 	// Start sequential reading of sensor data
-	icm_instance->send_one_byte(ICM_ACCEL_XOUT_H | ICM_READ);
+	icm_instance->send_one_byte(ICM_ACCEL_XOUT_H | ICM_READ_REGISTERS);
 
 	// Get accelerometer data
 	icm_data_storage_array[icm_accelerometer_x] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
@@ -112,7 +112,7 @@ uint32_t icm_20600_check_if_alive(const icm_20600_instance *icm_instance)
 	icm_instance->cs_low();
 
 	// Check if device is connected
-	icm_instance->send_one_byte(ICM_WHO_AM_I | ICM_READ);
+	icm_instance->send_one_byte(ICM_WHO_AM_I | ICM_READ_REGISTERS);
 	if ( icm_instance->send_one_byte(0xff) == 0 )
 	{
 		icm_instance->cs_high();
@@ -151,7 +151,7 @@ void icm_20600_setup(const icm_20600_instance *icm_instance,
 
 	icm_instance->cs_low();
 
-	icm_instance->send_one_byte(ICM_GYRO_CONFIG | ICM_WRITE);
+	icm_instance->send_one_byte(ICM_GYRO_CONFIG | ICM_WRITE_REGISTERS);
 	icm_instance->send_one_byte(gyro_scale_value << ICM_GYRO_CONFIG_FS_SEL_pos);
 	icm_instance->send_one_byte(accel_scale_value << ICM_ACCEL_CONFIG_1_FS_SEL_pos);
 

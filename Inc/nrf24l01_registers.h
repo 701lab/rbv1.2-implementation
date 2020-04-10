@@ -1,16 +1,48 @@
 #ifndef NRF24L01_REGISTERS_H_
 #define NRF24L01_REGISTERS_H_
 
-// Information about regesters contains in nrf24l01+ datasheet
+// Information about registers contains in nrf24l01+ datasheet
+// This file is enhanced with only bits and masks useful for library implementation. So not all bits are masked here.
 
 //*** NRF24L0+ registers ***//
-#define NRF24_NRF_CONFIG  		0x00
-#define NRF24_EN_AA       		0x01
+
+// Register
+#define NRF24_NRF_CONFIG  			0x00
+	// Bits
+	#define NRF24_MASK_RX_DR			0x40	// Data received interrupt: 1 - disable, 0 - enable
+	#define NRF24_MASK_TX_DS			0x20	// Data transmitted interrupt: 1 - disable, 0 - enable
+	#define NRF24_MASK_MAX_RT			0x10	// Maximum amount of retransmissions reached interrupt: 1 - disable, 0 - enable
+	#define NRF24_EN_CRC				0x80	// 1 - enable CRC, 0 - disable CRC
+	#define NRF24_CRCO					0x40	// 1 - 2 bytes CRC, 0 - 1 byte CRC
+	#define NRF24_PWR_UP				0x20	// 1 - power up, 0 - power down
+	#define NRF24_PRIM_RX				0x10	// 1 - receiver (RX), 0 - transmitter (TX)
+	// Masks
+	#define NRF24_INTERRUPTS_MASK		0x70	// To mask all interrupts at the same time
+
+// Registers
+#define NRF24_EN_AA       		0x01			// Not used in the library
 #define NRF24_EN_RXADDR   		0x02
-#define NRF24_SETUP_AW    		0x03
+	// can implement pipe enable with shift 1<<pipe number
+//	#define NRF24_ERX_P5			0x20		// Data pipe 5: 1 - enable, 0 - disable (disabled by default)
+//	#define NRF24_ERX_P4			0x10		// Data pipe 4: 1 - enable, 0 - disable (disabled by default)
+//	#define NRF24_ERX_P3			0x08		// Data pipe 3: 1 - enable, 0 - disable (disabled by default)
+//	#define NRF24_ERX_P2			0x04		// Data pipe 2: 1 - enable, 0 - disable (disabled by default)
+//	#define NRF24_ERX_P1			0x02		// Data pipe 1: 1 - enable, 0 - disable (enabled by default)
+//	#define NRF24_ERX_P0			0x01		// Data pipe 0: 1 - enable, 0 - disable (enabled by default)
+
+// Registers
+#define NRF24_SETUP_AW    		0x03			// Not used in the library
 #define NRF24_SETUP_RETR  		0x04
+	// Fields positions
+	#define NRF24_ARD_pos			(4U)		// Shift for auto retransmit delay setup field
+	#define NRF24_ARC_pos			(0U)		// SHift for auto retransmit count setup field
+
+// Registers
 #define NRF24_RF_CH       		0x05
 #define NRF24_RF_SETUP    		0x06
+	#define NRF24_RF_DR_pos			(3U)		// Shift for data rate setup bits
+	#define NRF24_RF_PWR_pos		(1U)		// Shift for output power setup filed
+
 #define NRF24_NRF_STATUS  		0x07
 #define NRF24_OBSERVE_TX  		0x08
 #define NRF24_CD          		0x09

@@ -115,8 +115,9 @@
 #define ICM_ZA_OFFSET_L					0x7E
 
 //*** ICM-20600 general commands ***//
-#define ICM_READ						0x80
-#define ICM_WRITE						0x00
+#define ICM_READ_REGISTERS				0x80
+#define ICM_WRITE_REGISTERS				0x00
+#define ICM_REGISTER_MASK				0x7F;
 
 
 #endif /* ICM_20600_REGISTERS_H_ */
