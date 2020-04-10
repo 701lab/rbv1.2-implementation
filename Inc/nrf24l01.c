@@ -1,36 +1,129 @@
 #include "nrf24l01.h"
 
+uint32_t nrf24_basic_init(nrf24l01p * nrf24_instance)
+{
+	// To start SPI transmission high to low front should be detected. So we should prepare lone setting it high
+	nrf24_instance->csn_high();
+
+	// Go to standby-1 mode in case init is called to re-setup device
+	nrf24_instance->ce_low();
+
+	// This function will return mistake code if mistake occures. If more then one mistake occures only code of the last one will be returned
+	uint32_t mistake_code = 0;
+
+	// Default config setup - disable all interrupts, enable CRC with 1 byte encoding, TX mode with NO power up
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_CONFIG);
+	nrf24_instance->spi_write_byte(NRF24_INTERRUPTS_MASK | NRF24_EN_CRC | NRF24_CRCO);
+	nrf24_instance->csn_high();
+
+
+	// Checking frequency channel. Change to valid value if wrong and throw mistake. Then write value to NRF
+	if(nrf24_instance->frequency_channel < 1)
+	{
+		nrf24_instance->frequency_channel = 1;
+		mistake_code = NRF24_WRONG_CHANNEL_FREQUENCY;
+	}
+	else if (nrf24_instance->frequency_channel > 124)
+	{
+		nrf24_instance->frequency_channel = 124;
+		mistake_code = NRF24_WRONG_CHANNEL_FREQUENCY;
+	}
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_RF_CH);
+	nrf24_instance->spi_write_byte(nrf24_instance->frequency_channel);
+	nrf24_instance->csn_high();
+
+	// Set up device data rate and power output
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_RF_SETUP);
+	nrf24_instance->spi_write_byte(nrf24_instance->data_rate | nrf24_instance->power_output);
+	nrf24_instance->csn_high();
+
+	// Reset all interrupt flags in case setup is called more than one time to dynamically change parameters of nrf24l01+ instance
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_STATUS);
+	nrf24_instance->spi_write_byte(NRF24_INTERRUPTS_MASK);
+	nrf24_instance->csn_high();
+
+	// Check if payload size is correct. If needed change value and throw mistake. Then write value for pipe 0
+	if(nrf24_instance->payload_size_in_bytes < 0)
+	{
+		nrf24_instance->payload_size_in_bytes = 0;
+		mistake_code = NRF24_WRONG_PAYLOAD_SIZE;
+	}
+	else if (nrf24_instance->payload_size_in_bytes > 32)
+	{
+		nrf24_instance->payload_size_in_bytes = 32;
+		mistake_code = NRF24_WRONG_PAYLOAD_SIZE;
+	}
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_RX_PW_P0);
+	nrf24_instance->spi_write_byte(nrf24_instance->payload_size_in_bytes);
+	nrf24_instance->csn_high();
+
+	// Write same payload size for pipe 1
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_RX_PW_P1);
+	nrf24_instance->spi_write_byte(nrf24_instance->payload_size_in_bytes);
+	nrf24_instance->csn_high();
+
+	return mistake_code;
+}
+
+
+// This function takes nrf to standby-1 but does not put CE high, so it should be done elsewhere
+void nrf24_power_up(nrf24l01p * nrf24_instance)
+{
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_R_REGISTER | NRF24_CONFIG);
+	uint8_t current_register_state = nrf24_instance->spi_write_byte(NRF24_NOP);
+	nrf24_instance->csn_high();
+
+	current_register_state |= NRF24_PWR_UP;
+
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_CONFIG);
+	nrf24_instance->spi_write_byte(current_register_state);
+	nrf24_instance->csn_high();
+}
+
+
+
+
+
+
 
 //***********NRF24l01+ main setup***********// 
 // NRF is seted up as transmiter with address 0xAABBCCDD11
 // 1 MBS, -6dBm, 32 payload length, 45 channel
 //******************************************//
 
-void nrf24_basic_init(void){
+void nrf24_basic_init_old(void){
 
 	NRF24_CSN_HIGH
 
 
 	//Main nrf setup: bit 0 - RX-mod=1, TX-mod=0; bit 1 - Power up=1, Power down=0; bit 2 - 1 byte CRC=0, 2 byte CRC=1, bit 3 - Enable CRC
 	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_NRF_CONFIG);//0x20
+	nrf24_spi_write(NRF24_W_REGISTER | NRF24_CONFIG);//0x20
 	nrf24_spi_write(0x0E); // Transmiter mod
 	NRF24_CSN_HIGH
 
-	//Next to registers - really advanced setup.
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_FEATURE);		 //0x3D
-	nrf24_spi_write(0x00);
-	NRF24_CSN_HIGH
-
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_DYNPD);	 		 //0x3C
-	nrf24_spi_write(0x00);
-	NRF24_CSN_HIGH
+//	//Next to registers - really advanced setup.
+//	NRF24_CSN_LOW
+//	nrf24_spi_write(NRF24_W_REGISTER | NRF24_FEATURE);		 //0x3D
+//	nrf24_spi_write(0x00);
+//	NRF24_CSN_HIGH
+//
+//	NRF24_CSN_LOW
+//	nrf24_spi_write(NRF24_W_REGISTER | NRF24_DYNPD);	 		 //0x3C
+//	nrf24_spi_write(0x00);
+//	NRF24_CSN_HIGH
 	
 	//Clear tx and rx flags to communicate 
 	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_NRF_STATUS); //0x27
+	nrf24_spi_write(NRF24_W_REGISTER | NRF24_STATUS); //0x27
 	nrf24_spi_write(0x70);
 	NRF24_CSN_HIGH
 
@@ -72,15 +165,15 @@ void nrf24_basic_init(void){
 	nrf24_spi_write(PAYLOAD_LENGTH);
 	NRF24_CSN_HIGH
 
-	//Clear TX payload
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_FLUSH_TX);
-	NRF24_CSN_HIGH
-	
-	//Clear RX payload
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_FLUSH_RX);
-	NRF24_CSN_HIGH
+//	//Clear TX payload
+//	NRF24_CSN_LOW
+//	nrf24_spi_write(NRF24_FLUSH_TX);
+//	NRF24_CSN_HIGH
+//
+//	//Clear RX payload
+//	NRF24_CSN_LOW
+//	nrf24_spi_write(NRF24_FLUSH_RX);
+//	NRF24_CSN_HIGH
 
 	NRF24_CE_HIGH
 }
@@ -171,7 +264,7 @@ void tx_mode(void)
 	NRF24_CE_LOW
 	
 	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_NRF_CONFIG);//0x20
+	nrf24_spi_write(NRF24_W_REGISTER | NRF24_CONFIG);//0x20
 	nrf24_spi_write(0x0E); // Transmiter mod
 	NRF24_CSN_HIGH
 	
@@ -180,7 +273,7 @@ void tx_mode(void)
 	NRF24_CSN_HIGH
 
 	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_NRF_STATUS); //0x27
+	nrf24_spi_write(NRF24_W_REGISTER | NRF24_STATUS); //0x27
 	nrf24_spi_write(0x70);
 	NRF24_CSN_HIGH
 
@@ -197,7 +290,7 @@ void rx_mode(void)
 	NRF24_CE_LOW
 
 	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_NRF_CONFIG);//0x20
+	nrf24_spi_write(NRF24_W_REGISTER | NRF24_CONFIG);//0x20
 	nrf24_spi_write(0x0F); // Receiver mod
 	NRF24_CSN_HIGH
 
@@ -206,7 +299,7 @@ void rx_mode(void)
 	NRF24_CSN_HIGH
 
 	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_NRF_STATUS); //0x27
+	nrf24_spi_write(NRF24_W_REGISTER | NRF24_STATUS); //0x27
 	nrf24_spi_write(0x70);
 	NRF24_CSN_HIGH
 
@@ -222,7 +315,7 @@ Send data by splitting it into single bytes. Weird method, but really beautiful 
 
 void nrf24_send_data(const void* data, uint32_t PayloadSize, int no_ack)
 {
-	NRF24_CE_LOW
+//	NRF24_CE_LOW
 
 	NRF24_CSN_LOW
 	nrf24_spi_write(NRF24_FLUSH_TX);
@@ -246,11 +339,14 @@ void nrf24_send_data(const void* data, uint32_t PayloadSize, int no_ack)
 	NRF24_CSN_HIGH //end of sending procedure
 
 	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_NRF_STATUS); //0x27
+	nrf24_spi_write(NRF24_W_REGISTER | NRF24_STATUS); //0x27
 	nrf24_spi_write(0x70); // reseting status flags
 	NRF24_CSN_HIGH
 
 	NRF24_CE_HIGH
+	for (int i = 0; i < 1000; ++i){}
+	NRF24_CE_LOW
+
 }
 
 
@@ -306,7 +402,7 @@ void readData(void *data, uint32_t PayloadSize)
 	NRF24_CSN_HIGH
 
 	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_NRF_STATUS);
+	nrf24_spi_write(NRF24_W_REGISTER | NRF24_STATUS);
 	nrf24_spi_write(NRF_STATUS_RESET);
 	NRF24_CSN_HIGH
 }
@@ -330,8 +426,8 @@ uint32_t nrf24_check_if_alive(void)
 		return 0;
 	}
 
-	return 1;
 	NRF24_CSN_HIGH
+	return 1;
 }
 
 

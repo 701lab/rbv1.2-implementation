@@ -73,6 +73,12 @@ position_control motor2_position_controller =
 
 icm_20600_instance robot_imu;
 
+nrf24l01p robot_nrf24;
+
+uint8_t addrForTx[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
+
+uint8_t current_register_state = 0;
+
 
 int main(void)
 {
@@ -103,21 +109,49 @@ int main(void)
 	robot_imu.cs_low = gpiob12_low;
 	robot_imu.send_one_byte = spi2_write_single_byte;
 
+	robot_nrf24.ce_high = gpiob0_high;
+	robot_nrf24.ce_low = gpiob0_low;
+	robot_nrf24.csn_high = gpiob1_high;
+	robot_nrf24.csn_low = gpiob1_low;
+	robot_nrf24.spi_write_byte = spi1_write_single_byte;
+	robot_nrf24.frequency_channel = 45;
+	robot_nrf24.payload_size_in_bytes = 12;
+	robot_nrf24.power_output = nrf24_pa_high;
+	robot_nrf24.data_rate = nrf24_1_mbps;
+
+//	nrf24_power_up(&robot_nrf24);
+
+
 	full_device_setup(no);
 
 	// Enables both motors
-	motor1.motor_enable();
+//	motor1.motor_enable();
 
 	basic_spi1_setup(5000000);
 	basic_spi2_setup(5000000);
-	nrf24_basic_init();
+
+//	nrf24_basic_init_old();
+
+	setTxAddress(addrForTx);
+
+	nrf24_basic_init(&robot_nrf24);
+	nrf24_power_up(&robot_nrf24);
+//	robot_nrf24.ce_high();
+
 	icm_20600_basic_init(&robot_imu, 0);
 
-	motor1.speed_controller->target_speed = 1.0f;
-	motor2.speed_controller->target_speed = 1.0f;
+//	motor1.speed_controller->target_speed = 1.0f;
+//	motor2.speed_controller->target_speed = 1.0f;
 
 	while(1)
 	{
+
+//		robot_nrf24.csn_low();
+//		robot_nrf24.spi_write_byte(NRF24_R_REGISTER | NRF24_RF_SETUP);
+//		current_register_state = robot_nrf24.spi_write_byte(NRF24_NOP);
+//		robot_nrf24.csn_high();
+
+
 
 		icm_20600_get_sensors_data(&robot_imu, icm_data, no);
 		nrf24_send_data(nrf_data, 12, yes);

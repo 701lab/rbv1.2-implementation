@@ -3,6 +3,7 @@
 
 #include "implementation.h"
 #include "nrf24l01_registers.h"
+#include "nrf24l01p_mistakes.h"
 
 //** Place for development of new library which will fully replace the old one. Work in progress so far. **//
 
@@ -18,48 +19,6 @@
 	- only addresses with a length of 5 bytes are allowed. Addresses with 3 and 4 bytes are not allowed;
 
  */
-
-
-/*
-	@brief Main structure which fully describes nrf24l01+ instance.
- */
-typedef struct
-{
-	/*
-		@brief Chip select high. Used in SPI communication to indicate the end of the transition.
-			Should set CSN pin of this particular NRF24L01+ instance into logic high.
-	 */
-	void (*csn_high)(void);
-
-	/*
-		@brief Chip select low. Used in SPI communication to indicate the start of the transition.
-			Should set CSN pin of this particular NRF24L01+ instance into logic low.
-	 */
-	void (*csn_low)(void);
-
-	/*
-		@brief Chip enable high. Enables chip from standby-1 mode.
-			Should set CE pin of this particular NRF24L01+ instance into logic high.
-	 */
-	void (*ce_high)(void);
-
-	/*
-		@brief Chip enable low. Disables chip from either RX or TX  mode into the standby-1.
-			Should set CE pin of this particular NRF24L01+ instance into logic low.
-	 */
-	void (*ce_low)(void);
-
-	/*
-		@brief Sends single byte through specified SPI. Returns recieved with this byte answer.
-			Should send input byte by the NRF24L01+ instance-specific SPI in single-byte mode. Should return byte received by SPI during transmission.
-	 */
-	uint8_t (*spi_write_byte)(uint8_t byte_to_be_written);
-
-	uint32_t frequency_channel;
-	nrf24_pa_contol power_output;
-	nrf24_data_rate data_rate;
-	nrf24_auto_retransmit_delay auto_retransmit_delay;
-} nrf24l01p;
 
 // @brief New data type for safe nrf24l01+ data rate setup
 typedef enum nrf24_data_rate
@@ -100,14 +59,64 @@ typedef enum nrf24_auto_retransmit_delay
 } nrf24_auto_retransmit_delay;
 
 
+
+
+
+/*
+	@brief Main structure which fully describes nrf24l01+ instance.
+ */
+typedef struct
+{
+	/*
+		@brief Chip select high. Used in SPI communication to indicate the end of the transition.
+			Should set CSN pin of this particular NRF24L01+ instance into logic high.
+	 */
+	void (*csn_high)(void);
+
+	/*
+		@brief Chip select low. Used in SPI communication to indicate the start of the transition.
+			Should set CSN pin of this particular NRF24L01+ instance into logic low.
+	 */
+	void (*csn_low)(void);
+
+	/*
+		@brief Chip enable high. Enables chip from standby-1 mode.
+			Should set CE pin of this particular NRF24L01+ instance into logic high.
+	 */
+	void (*ce_high)(void);
+
+	/*
+		@brief Chip enable low. Disables chip from either RX or TX  mode into the standby-1.
+			Should set CE pin of this particular NRF24L01+ instance into logic low.
+	 */
+	void (*ce_low)(void);
+
+	/*
+		@brief Sends single byte through specified SPI. Returns recieved with this byte answer.
+			Should send input byte by the NRF24L01+ instance-specific SPI in single-byte mode. Should return byte received by SPI during transmission.
+	 */
+	uint8_t (*spi_write_byte)(uint8_t byte_to_be_written);
+
+	// Used as default payload size for channel 1 and 0
+	uint32_t payload_size_in_bytes;
+
+	uint32_t frequency_channel;
+	nrf24_pa_contol power_output;
+	nrf24_data_rate data_rate;
+	nrf24_auto_retransmit_delay auto_retransmit_delay;
+} nrf24l01p;
+
+
 //*** Basic building blocks of library ***//
 
-
+uint32_t nrf24_basic_init(nrf24l01p * nrf24_instance);
 
 
 
 // @brief Can be called almost immediately afters board startup, but nrf24 need 100ms to start up into power-down mode, so check should be produced. In power-down all registers are available through SPI.
-uint32_t nrf24_power_up(nrf24l01p * nrf24_instance);
+// Думаю комментарий выше ошибочен
+void nrf24_power_up(nrf24l01p * nrf24_instance);
+
 
 // @brief Goes to power down mode directly from any device state. Not recommended but possible behavior.
 uint32_t nrf24_fast_power_down(nrf24l01p * nrf24_instance);
@@ -156,7 +165,7 @@ void nrf24_enable_interrupts(uint32_t enable_rx_dr, uint32_t enable_tx_ds, uint3
 #define PAYLOAD_LENGTH 12 			// number of bytes to be transmited and recieved. Roght now all pipes use the same value
 																// can be updated. so each pype will have it own pyaload length. Values [1, 32]
 
-void nrf24_basic_init(void);    		// consist NRF registers setup
+void nrf24_basic_init_old(void);    		// consist NRF registers setup
 
 
 

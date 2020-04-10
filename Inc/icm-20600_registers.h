@@ -117,7 +117,7 @@
 //*** ICM-20600 general commands ***//
 #define ICM_READ_REGISTERS				0x80
 #define ICM_WRITE_REGISTERS				0x00
-#define ICM_REGISTER_MASK				0x7F;
+//#define ICM_REGISTER_MASK				0x7F;  ??
 
 
 #endif /* ICM_20600_REGISTERS_H_ */

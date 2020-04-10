@@ -7,15 +7,15 @@
 //*** NRF24L0+ registers ***//
 
 // Register
-#define NRF24_NRF_CONFIG  			0x00
+#define NRF24_CONFIG  			0x00
 	// Bits
 	#define NRF24_MASK_RX_DR			0x40	// Data received interrupt: 1 - disable, 0 - enable
 	#define NRF24_MASK_TX_DS			0x20	// Data transmitted interrupt: 1 - disable, 0 - enable
 	#define NRF24_MASK_MAX_RT			0x10	// Maximum amount of retransmissions reached interrupt: 1 - disable, 0 - enable
-	#define NRF24_EN_CRC				0x80	// 1 - enable CRC, 0 - disable CRC
-	#define NRF24_CRCO					0x40	// 1 - 2 bytes CRC, 0 - 1 byte CRC
-	#define NRF24_PWR_UP				0x20	// 1 - power up, 0 - power down
-	#define NRF24_PRIM_RX				0x10	// 1 - receiver (RX), 0 - transmitter (TX)
+	#define NRF24_EN_CRC				0x08	// 1 - enable CRC, 0 - disable CRC
+	#define NRF24_CRCO					0x04	// 1 - 2 bytes CRC, 0 - 1 byte CRC
+	#define NRF24_PWR_UP				0x02	// 1 - power up, 0 - power down
+	#define NRF24_PRIM_RX				0x01	// 1 - receiver (RX), 0 - transmitter (TX)
 	// Masks
 	#define NRF24_INTERRUPTS_MASK		0x70	// To mask all interrupts at the same time
 
@@ -40,10 +40,7 @@
 // Registers
 #define NRF24_RF_CH       		0x05
 #define NRF24_RF_SETUP    		0x06
-	#define NRF24_RF_DR_pos			(3U)		// Shift for data rate setup bits
-	#define NRF24_RF_PWR_pos		(1U)		// Shift for output power setup filed
-
-#define NRF24_NRF_STATUS  		0x07
+#define NRF24_STATUS  			0x07
 #define NRF24_OBSERVE_TX  		0x08
 #define NRF24_CD          		0x09
 
