@@ -1,7 +1,32 @@
 #include "nrf24l01.h"
 
-uint32_t nrf24_basic_init(nrf24l01p * nrf24_instance)
+uint32_t nrf24_basic_init(nrf24l01p *nrf24_instance)
 {
+	// Check if the particular device was initialized properly
+	uint32_t declaration_mistake_code = nrf24_check_declarations(nrf24_instance);
+	if ( declaration_mistake_code )
+	{
+		// Function is immediately stopped
+		return declaration_mistake_code;
+	}
+
+	// Check if the particular device is at least in power-down mode. It takes 100ms for the device to load into the power-down from the power on.
+	// So if the function is called immediately device could not be ready yet
+	uint32_t checks = 0;
+	while ( nrf24_check_if_alive(nrf24_instance) )
+	{
+		// Small dummy delay. Efficiency will depend on MCU clock speed
+		for (uint32_t dummy_delay = 0; dummy_delay < 1000; dummy_delay++){}
+
+		checks += 1;
+
+		// If after 10 checks device is still not responding return mistake code
+		if ( checks == 10 )
+		{
+			return NRF24_DEVICE_IS_NOT_CONNECTED;
+		}
+	}
+
 	// To start SPI transmission high to low front should be detected. So we should prepare lone setting it high
 	nrf24_instance->csn_high();
 
@@ -17,14 +42,13 @@ uint32_t nrf24_basic_init(nrf24l01p * nrf24_instance)
 	nrf24_instance->spi_write_byte(NRF24_INTERRUPTS_MASK | NRF24_EN_CRC | NRF24_CRCO);
 	nrf24_instance->csn_high();
 
-
 	// Checking frequency channel. Change to valid value if wrong and throw mistake. Then write value to NRF
-	if(nrf24_instance->frequency_channel < 1)
+	if ( nrf24_instance->frequency_channel < 1 )
 	{
 		nrf24_instance->frequency_channel = 1;
 		mistake_code = NRF24_WRONG_CHANNEL_FREQUENCY;
 	}
-	else if (nrf24_instance->frequency_channel > 124)
+	else if ( nrf24_instance->frequency_channel > 124 )
 	{
 		nrf24_instance->frequency_channel = 124;
 		mistake_code = NRF24_WRONG_CHANNEL_FREQUENCY;
@@ -47,12 +71,12 @@ uint32_t nrf24_basic_init(nrf24l01p * nrf24_instance)
 	nrf24_instance->csn_high();
 
 	// Check if payload size is correct. If needed change value and throw mistake. Then write value for pipe 0
-	if(nrf24_instance->payload_size_in_bytes < 0)
+	if ( nrf24_instance->payload_size_in_bytes < 0 )
 	{
 		nrf24_instance->payload_size_in_bytes = 0;
 		mistake_code = NRF24_WRONG_PAYLOAD_SIZE;
 	}
-	else if (nrf24_instance->payload_size_in_bytes > 32)
+	else if ( nrf24_instance->payload_size_in_bytes > 32 )
 	{
 		nrf24_instance->payload_size_in_bytes = 32;
 		mistake_code = NRF24_WRONG_PAYLOAD_SIZE;
@@ -68,29 +92,114 @@ uint32_t nrf24_basic_init(nrf24l01p * nrf24_instance)
 	nrf24_instance->spi_write_byte(nrf24_instance->payload_size_in_bytes);
 	nrf24_instance->csn_high();
 
+	// Device was initialized
+	nrf24_instance->device_was_initialized = 1;
+
 	return mistake_code;
 }
 
 
-// This function takes nrf to standby-1 but does not put CE high, so it should be done elsewhere
-void nrf24_power_up(nrf24l01p * nrf24_instance)
+//************ check if particular nrf24l01+ instance connected *************//
+/*
+	@brief Read RF_CH register (which is never equals 0). If response data equals 0 - device is not connected, returns mistake code
+
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+
+	@return mistake code or 0 if no mistakes were found
+*/
+//*************************************************//
+uint32_t nrf24_check_if_alive(nrf24l01p *nrf24_instance)
 {
+	nrf24_instance->csn_low();
+
+	nrf24_instance->spi_write_byte(NRF24_RF_CH);
+
+	if ( nrf24_instance->spi_write_byte(NRF24_NOP) )
+	{
+		nrf24_instance->csn_high();
+		return 0;
+	}
+
+	nrf24_instance->csn_high();
+	return NRF24_DEVICE_IS_NOT_CONNECTED;
+}
+
+//********************************************//
+/*
+	@brief Checks if all function pointers were initialized. If not returns mistake code.
+		Those mistakes should be handled as critical, so any function calling this one should immediately return mistake code.
+
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+
+	@return first found mistake code or 0 if no mistakes were found
+ */
+//********************************************//
+// This function takes nrf to standby-1 but does not put CE high, so it should be done elsewhere
+uint32_t nrf24_power_up(nrf24l01p *nrf24_instance)
+{
+	// Check if device was initialized
+	if(nrf24_instance->device_was_initialized == 0)
+	{
+		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
+	}
+
+	// Read current config state
 	nrf24_instance->csn_low();
 	nrf24_instance->spi_write_byte(NRF24_R_REGISTER | NRF24_CONFIG);
 	uint8_t current_register_state = nrf24_instance->spi_write_byte(NRF24_NOP);
 	nrf24_instance->csn_high();
 
+	// Add power up to current config
 	current_register_state |= NRF24_PWR_UP;
 
+	// Write new config state
 	nrf24_instance->csn_low();
 	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_CONFIG);
 	nrf24_instance->spi_write_byte(current_register_state);
 	nrf24_instance->csn_high();
+
+	return 0;
 }
 
+//********************************************//
+/*
+	@brief Checks if all function pointers were initialized. If not returns mistake code.
+		Those mistakes should be handled as critical, so any function calling this one should immediately return mistake code.
 
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
 
+	@return first found mistake code or 0 if no mistakes were found
+ */
+//********************************************//
+uint32_t nrf24_check_declarations(nrf24l01p *nrf24_instance)
+{
+	if ( nrf24_instance->ce_high == 0 )
+	{
+		return NRF24_CE_HIGH_FUNCTION_IS_MISSING;
+	}
 
+	if ( nrf24_instance->ce_low == 0 )
+	{
+		return NRF24_CE_LOW_FUNCTION_IS_MISSING;
+	}
+
+	if ( nrf24_instance->csn_high == 0 )
+	{
+		return NRF24_CSN_HIGH_FUNCTION_IS_MISSING;
+	}
+
+	if ( nrf24_instance->csn_low == 0 )
+	{
+		return NRF24_CSN_LOW_FUNCTION_IS_MISSING;
+	}
+
+	if ( nrf24_instance->spi_write_byte == 0 )
+	{
+		return NRF24_SPI_WRITE_FUNCTION_IS_MISSING;
+	}
+
+	return 0;
+}
 
 
 
@@ -406,31 +515,4 @@ void readData(void *data, uint32_t PayloadSize)
 	nrf24_spi_write(NRF_STATUS_RESET);
 	NRF24_CSN_HIGH
 }
-
-
-//************read data from NRF24l01+*************//
-/*
- If i right, all data srores in memory byte by byte, so, no matter what length we send we will be able to reconstruct data by
- fulling any array with needed data. If it works, same aproach can work with transmition, which will be greate.
-*/
-//*************************************************//
-uint32_t nrf24_check_if_alive(void)
-{
-	NRF24_CSN_LOW
-
-	nrf24_spi_write(NRF24_RF_CH);
-
-	if ( nrf24_spi_write(0xFF) )
-	{
-		NRF24_CSN_HIGH
-		return 0;
-	}
-
-	NRF24_CSN_HIGH
-	return 1;
-}
-
-
-
-
 

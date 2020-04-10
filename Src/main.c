@@ -134,8 +134,18 @@ int main(void)
 
 	setTxAddress(addrForTx);
 
-	nrf24_basic_init(&robot_nrf24);
-	nrf24_power_up(&robot_nrf24);
+	uint32_t possible_mistakes = nrf24_basic_init(&robot_nrf24);
+	if(possible_mistakes)
+	{
+		add_to_mistakes_log(possible_mistakes);
+	}
+
+	possible_mistakes = nrf24_power_up(&robot_nrf24);
+	if(possible_mistakes)
+	{
+		add_to_mistakes_log(possible_mistakes);
+	}
+
 //	robot_nrf24.ce_high();
 
 	icm_20600_basic_init(&robot_imu, 0);

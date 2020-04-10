@@ -59,11 +59,8 @@ typedef enum nrf24_auto_retransmit_delay
 } nrf24_auto_retransmit_delay;
 
 
-
-
-
 /*
-	@brief Main structure which fully describes nrf24l01+ instance.
+	@brief Structure which contains all parameters that should be the same on both transmitter and receiver for easier and more consistent setups.
  */
 typedef struct
 {
@@ -97,25 +94,33 @@ typedef struct
 	 */
 	uint8_t (*spi_write_byte)(uint8_t byte_to_be_written);
 
-	// Used as default payload size for channel 1 and 0
+	// Used as default payload size for channel 1 and 0.
 	uint32_t payload_size_in_bytes;
 
 	uint32_t frequency_channel;
 	nrf24_pa_contol power_output;
 	nrf24_data_rate data_rate;
-	nrf24_auto_retransmit_delay auto_retransmit_delay;
+
+	// Flag that is used to understand if device was already initialized. Needed for error checking optimiztion.
+	uint32_t device_was_initialized;
 } nrf24l01p;
 
 
-//*** Basic building blocks of library ***//
-
+/*
+	@brief Sets up nrf24l01+ in such a way that it doen't use anything additional to what is needed to transmit and receive data in
+ */
 uint32_t nrf24_basic_init(nrf24l01p * nrf24_instance);
 
+// @brief Reads *** register which always contains some non 0 data to check if device is connected.
+uint32_t nrf24_check_if_alive(nrf24l01p * nrf24_instance);
+
+// @brief
+uint32_t nrf24_check_declarations(nrf24l01p * nrf24_instance);
 
 
 // @brief Can be called almost immediately afters board startup, but nrf24 need 100ms to start up into power-down mode, so check should be produced. In power-down all registers are available through SPI.
 // Думаю комментарий выше ошибочен
-void nrf24_power_up(nrf24l01p * nrf24_instance);
+uint32_t nrf24_power_up(nrf24l01p * nrf24_instance);
 
 
 // @brief Goes to power down mode directly from any device state. Not recommended but possible behavior.
@@ -124,8 +129,7 @@ uint32_t nrf24_fast_power_down(nrf24l01p * nrf24_instance);
 // @brief Going to power down through standby-1 state even though it is possible to do from any other state directly. Recommended behavior.
 uint32_t nrf24_safe_power_down(nrf24l01p * nrf24_instance);
 
-// @brief Reads *** register which always contains some non 0 data to check if device is connected.
-uint32_t nrf24_check_if_alive(void);
+
 
 // @brief Enables interrupts with 1 in related input parameters, disables interrupts with 0. So to disable all interrupts call function with all 0 as inputs.
 void nrf24_enable_interrupts(uint32_t enable_rx_dr, uint32_t enable_tx_ds, uint32_t enable_max_rt);
