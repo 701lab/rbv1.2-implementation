@@ -1,5 +1,14 @@
 #include "nrf24l01.h"
 
+// ******************* Function ******************* //
+/*
+	@brief Read RF_CH register (which is never equals 0). If response data equals 0 - device is not connected, returns mistake code
+
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+
+	@return mistake code or 0 if no mistakes were found
+*/
+// ************************************************ //
 uint32_t nrf24_basic_init(nrf24l01p *nrf24_instance)
 {
 	// Check if the particular device was initialized properly
@@ -33,7 +42,7 @@ uint32_t nrf24_basic_init(nrf24l01p *nrf24_instance)
 	// Go to standby-1 mode in case init is called to re-setup device
 	nrf24_instance->ce_low();
 
-	// This function will return mistake code if mistake occures. If more then one mistake occures only code of the last one will be returned
+	// This function will return mistake code if mistake occurs. If more then one mistake occurs only code of the last one will be returned
 	uint32_t mistake_code = 0;
 
 	// Default config setup - disable all interrupts, enable CRC with 1 byte encoding, TX mode with NO power up
@@ -99,7 +108,7 @@ uint32_t nrf24_basic_init(nrf24l01p *nrf24_instance)
 }
 
 
-//************ check if particular nrf24l01+ instance connected *************//
+// ******************* Function ******************* //
 /*
 	@brief Read RF_CH register (which is never equals 0). If response data equals 0 - device is not connected, returns mistake code
 
@@ -107,7 +116,7 @@ uint32_t nrf24_basic_init(nrf24l01p *nrf24_instance)
 
 	@return mistake code or 0 if no mistakes were found
 */
-//*************************************************//
+// ************************************************ //
 uint32_t nrf24_check_if_alive(nrf24l01p *nrf24_instance)
 {
 	nrf24_instance->csn_low();
@@ -124,17 +133,16 @@ uint32_t nrf24_check_if_alive(nrf24l01p *nrf24_instance)
 	return NRF24_DEVICE_IS_NOT_CONNECTED;
 }
 
-//********************************************//
+// ******************* Function ******************* //
 /*
-	@brief Checks if all function pointers were initialized. If not returns mistake code.
-		Those mistakes should be handled as critical, so any function calling this one should immediately return mistake code.
+	@brief Add PWR_UP bit to NRF24l01+ CONFIG register.
+		Doesn't touch CE pin. So id CE = 0 device will enter standby-1 mode. IF CE = 1 depending on PRIM_RX and RX FIFO can enter either RX, TX or standby-2 mode.
 
 	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
 
 	@return first found mistake code or 0 if no mistakes were found
  */
-//********************************************//
-// This function takes nrf to standby-1 but does not put CE high, so it should be done elsewhere
+// ************************************************ //
 uint32_t nrf24_power_up(nrf24l01p *nrf24_instance)
 {
 	// Check if device was initialized
@@ -161,7 +169,7 @@ uint32_t nrf24_power_up(nrf24l01p *nrf24_instance)
 	return 0;
 }
 
-//********************************************//
+// ******************* Function ******************* //
 /*
 	@brief Checks if all function pointers were initialized. If not returns mistake code.
 		Those mistakes should be handled as critical, so any function calling this one should immediately return mistake code.
@@ -170,7 +178,7 @@ uint32_t nrf24_power_up(nrf24l01p *nrf24_instance)
 
 	@return first found mistake code or 0 if no mistakes were found
  */
-//********************************************//
+// ************************************************ //
 uint32_t nrf24_check_declarations(nrf24l01p *nrf24_instance)
 {
 	if ( nrf24_instance->ce_high == 0 )
@@ -201,91 +209,180 @@ uint32_t nrf24_check_declarations(nrf24l01p *nrf24_instance)
 	return 0;
 }
 
+// ******************* Function ******************* //
+/*
+	@brief change device mode to tx, but not pulls CE logic high for power efficiency
 
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
 
-//***********NRF24l01+ main setup***********// 
-// NRF is seted up as transmiter with address 0xAABBCCDD11
-// 1 MBS, -6dBm, 32 payload length, 45 channel
-//******************************************//
+	@return first found mistake code or 0 if no mistakes were found
+ */
+// ************************************************ //
+uint32_t nrf24_tx_mode(nrf24l01p *nrf24_instance)
+{
+	// Check if device was initialized
+	if ( nrf24_instance->device_was_initialized == 0 )
+	{
+		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
+	}
 
-void nrf24_basic_init_old(void){
+	// Go to standby-1 mode if CE = 1 to safely switch modes
+	nrf24_instance->ce_low();
 
-	NRF24_CSN_HIGH
+	// Read current config state
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_R_REGISTER | NRF24_CONFIG);
+	uint8_t current_register_state = nrf24_instance->spi_write_byte(NRF24_NOP);
+	nrf24_instance->csn_high();
 
+	// Add power up to current config
+	current_register_state &= ~NRF24_PRIM_RX;
 
-	//Main nrf setup: bit 0 - RX-mod=1, TX-mod=0; bit 1 - Power up=1, Power down=0; bit 2 - 1 byte CRC=0, 2 byte CRC=1, bit 3 - Enable CRC
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_CONFIG);//0x20
-	nrf24_spi_write(0x0E); // Transmiter mod
-	NRF24_CSN_HIGH
+	// Write new config state
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_CONFIG);
+	nrf24_instance->spi_write_byte(current_register_state);
+	nrf24_instance->csn_high();
 
-//	//Next to registers - really advanced setup.
-//	NRF24_CSN_LOW
-//	nrf24_spi_write(NRF24_W_REGISTER | NRF24_FEATURE);		 //0x3D
-//	nrf24_spi_write(0x00);
-//	NRF24_CSN_HIGH
-//
-//	NRF24_CSN_LOW
-//	nrf24_spi_write(NRF24_W_REGISTER | NRF24_DYNPD);	 		 //0x3C
-//	nrf24_spi_write(0x00);
-//	NRF24_CSN_HIGH
-	
-	//Clear tx and rx flags to communicate 
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_STATUS); //0x27
-	nrf24_spi_write(0x70);
-	NRF24_CSN_HIGH
+	// Clear TX FIFO if it was not empty
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_FLUSH_TX);
+	nrf24_instance->csn_high();
 
-	//Setup of signal power and data rate
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_RF_SETUP);   //0x26
-	nrf24_spi_write(RF_POWER | DATA_RATE);
-	NRF24_CSN_HIGH
+	// Reset all interrupt flags
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_STATUS);
+	nrf24_instance->spi_write_byte(NRF24_INTERRUPTS_MASK);
+	nrf24_instance->csn_high();
 
-	//Setup channel from 0 to 127
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_RF_CH);			 //0x25
-	nrf24_spi_write(RF_CH_VAL);
-	NRF24_CSN_HIGH
-
-	//Receive 0 address. Should be the same as TX address. Default state 0xAABBCCDD11
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_RX_ADDR_P0); //0x2A
-	nrf24_spi_write(0x11);
-	nrf24_spi_write(0xDD);
-	nrf24_spi_write(0xCC);
-	nrf24_spi_write(0xBB);
-	nrf24_spi_write(0xAA);
-	NRF24_CSN_HIGH
-
-	//TX address. One of RX n(where n from 1 to 5) channels on the transiver should have the same address. Default state 0xAABBCCDD11
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_TX_ADDR);		 //0x30
-	nrf24_spi_write(0x11);
-	nrf24_spi_write(0xDD);
-	nrf24_spi_write(0xCC);
-	nrf24_spi_write(0xBB);
-	nrf24_spi_write(0xAA);
-	NRF24_CSN_HIGH
-
-	//RX_0 payload length
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_RX_PW_P0);   //0x31
-	nrf24_spi_write(PAYLOAD_LENGTH);
-	NRF24_CSN_HIGH
-
-//	//Clear TX payload
-//	NRF24_CSN_LOW
-//	nrf24_spi_write(NRF24_FLUSH_TX);
-//	NRF24_CSN_HIGH
-//
-//	//Clear RX payload
-//	NRF24_CSN_LOW
-//	nrf24_spi_write(NRF24_FLUSH_RX);
-//	NRF24_CSN_HIGH
-
-	NRF24_CE_HIGH
+	return 0;
 }
+
+// ******************* Function ******************* //
+/*
+	@brief Checks if all function pointers were initialized. If not returns mistake code.
+		Those mistakes should be handled as critical, so any function calling this one should immediately return mistake code.
+
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+
+	@return first found mistake code or 0 if no mistakes were found
+ */
+// ************************************************ //
+uint32_t nrf24_rx_mode(nrf24l01p *nrf24_instance)
+{
+	// Check if device was initialized
+	if ( nrf24_instance->device_was_initialized == 0 )
+	{
+		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
+	}
+
+	// Go to standby-1 mode
+	nrf24_instance->ce_low();
+
+	// Read current config state
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_R_REGISTER | NRF24_CONFIG);
+	uint8_t current_register_state = nrf24_instance->spi_write_byte(NRF24_NOP);
+	nrf24_instance->csn_high();
+
+	// Add power up to current config
+	current_register_state |= NRF24_PRIM_RX;
+
+	// Write new config state
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_CONFIG);
+	nrf24_instance->spi_write_byte(current_register_state);
+	nrf24_instance->csn_high();
+
+	// Clear RX FIFO if it was not empty
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_FLUSH_RX);
+	nrf24_instance->csn_high();
+
+	// Reset all interrupt flags
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_STATUS);
+	nrf24_instance->spi_write_byte(NRF24_INTERRUPTS_MASK);
+	nrf24_instance->csn_high();
+
+	// NRF should always be in RX mode not to miss data
+	nrf24_instance->ce_high();
+
+	return 0;
+}
+
+// ******************* Function ******************* //
+/*
+	@brief Sets new values for retransmit delay and count of retransmissions for particular nrf24l01+ device.
+		If retransmit count = 0 no retransmissions are produced.
+		This setup is very important if data is transmitted with ACK message.
+		To have ability to retransmit 32 bytes of data with ACC, retransmit delay should be at least 500us. 250us (default value) is enough for:
+		- 5 bytes payload at 1 Mbps data rate;
+		- 15 bytes palyload at 2 Mbps data rate.
+
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+	@param [in] new_retransmit_delay - new value of retransmission delay, should be expressed as nrf24_auto_retransmit_delay enum member
+	@param [in] new_retransmit_count - new retransmit count
+
+	@return first found mistake code or 0 if no mistakes were found
+ */
+// ************************************************ //
+uint32_t nrf24_update_retransmission_params(nrf24l01p * nrf24_instance, nrf24_auto_retransmit_delay new_retransmit_delay, uint32_t new_retransmit_count)
+{
+	// Check if device was initialized
+	if ( nrf24_instance->device_was_initialized == 0 )
+	{
+		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
+	}
+
+	uint32_t mistake_code = 0;
+
+	if(new_retransmit_count < 0)
+	{
+		new_retransmit_count = 0;
+		mistake_code = NRF24_WRONG_RETRANSMIT_COUNT;
+	}
+	else if ( new_retransmit_count > 15 )
+	{
+		new_retransmit_count = 15;
+		mistake_code = NRF24_WRONG_RETRANSMIT_COUNT;
+	}
+
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_SETUP_RETR);
+	nrf24_instance->spi_write_byte(new_retransmit_delay | new_retransmit_count);
+	nrf24_instance->csn_high();
+
+	return mistake_code;
+}
+
+
+
+
+// ******************* Function ******************* //
+/*
+	@brief Checks if all function pointers were initialized. If not returns mistake code.
+		Those mistakes should be handled as critical, so any function calling this one should immediately return mistake code.
+
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+
+	@return first found mistake code or 0 if no mistakes were found
+ */
+// ************************************************ //
+uint32_t nrf24_send_message(nrf24l01p * nrf24_instance, const void *payload, uint32_t payload_size, int32_t send_ac)
+{
+	if(nrf24_instance->device_was_initialized == 0)
+	{
+		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
+	}
+
+
+	return 0;
+}
+
+
+//*************************************************************
+
 
 
 //***********Set TX address***********// 
@@ -364,56 +461,33 @@ void enablePype(uint8_t pypeAddress[5], uint32_t pipeNum)
 }
 
 
-//***********TX mode***********// 
-// Turn on TX mode 
-//*****************************//
-
-void tx_mode(void)
-{
-	NRF24_CE_LOW
-	
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_CONFIG);//0x20
-	nrf24_spi_write(0x0E); // Transmiter mod
-	NRF24_CSN_HIGH
-	
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_FLUSH_TX);
-	NRF24_CSN_HIGH
-
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_STATUS); //0x27
-	nrf24_spi_write(0x70);
-	NRF24_CSN_HIGH
-
-	NRF24_CE_HIGH
-}
 
 
-//***********TX mode***********// 
-// Turn on RX mode 
-//*****************************//
 
-void rx_mode(void)
-{
-	NRF24_CE_LOW
-
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_CONFIG);//0x20
-	nrf24_spi_write(0x0F); // Receiver mod
-	NRF24_CSN_HIGH
-
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_FLUSH_RX);
-	NRF24_CSN_HIGH
-
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_STATUS); //0x27
-	nrf24_spi_write(0x70);
-	NRF24_CSN_HIGH
-
-	NRF24_CE_HIGH
-}
+////***********TX mode***********//
+//// Turn on RX mode
+////*****************************//
+//
+//void rx_mode(void)
+//{
+//	NRF24_CE_LOW
+//
+//	NRF24_CSN_LOW
+//	nrf24_spi_write(NRF24_W_REGISTER | NRF24_CONFIG);//0x20
+//	nrf24_spi_write(0x0F); // Receiver mod
+//	NRF24_CSN_HIGH
+//
+//	NRF24_CSN_LOW
+//	nrf24_spi_write(NRF24_FLUSH_RX);
+//	NRF24_CSN_HIGH
+//
+//	NRF24_CSN_LOW
+//	nrf24_spi_write(NRF24_W_REGISTER | NRF24_STATUS); //0x27
+//	nrf24_spi_write(0x70);
+//	NRF24_CSN_HIGH
+//
+//	NRF24_CE_HIGH
+//}
 
 
 //***************Send data**************// 

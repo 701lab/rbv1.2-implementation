@@ -40,22 +40,22 @@ typedef enum nrf24_pa_contol
 // @brief New data type for nrf24 safe nrf24l01+ auto retransmit delay setup
 typedef enum nrf24_auto_retransmit_delay
 {
-	nrf24_wait_250_us = (0U),
-	nrf24_wait_500_us = (1U),
-	nrf24_wait_750_us = (2U),
-	nrf24_wait_1000_us = (3U),
-	nrf24_wait_1250_us = (4U),
-	nrf24_wait_1500_us = (5U),
-	nrf24_wait_1750_us = (6U),
-	nrf24_wait_2000_us = (7U),
-	nrf24_wait_2250_us = (8U),
-	nrf24_wait_2500_us = (9U),
-	nrf24_wait_2750_us = (10U),
-	nrf24_wait_3000_us = (11U),
-	nrf24_wait_3250_us = (12U),
-	nrf24_wait_3500_us = (13U),
-	nrf24_wait_3750_us = (14U),
-	nrf24_wait_4000_us = (15U)
+	nrf24_wait_250_us = 0x00,
+	nrf24_wait_500_us = 0x10,
+	nrf24_wait_750_us = 0x20,
+	nrf24_wait_1000_us = 0x30,
+	nrf24_wait_1250_us = 0x40,
+	nrf24_wait_1500_us = 0x50,
+	nrf24_wait_1750_us = 0x60,
+	nrf24_wait_2000_us = 0x70,
+	nrf24_wait_2250_us = 0x80,
+	nrf24_wait_2500_us = 0x90,
+	nrf24_wait_2750_us = 0xA0,
+	nrf24_wait_3000_us = 0xB0,
+	nrf24_wait_3250_us = 0xC0,
+	nrf24_wait_3500_us = 0xD0,
+	nrf24_wait_3750_us = 0xE0,
+	nrf24_wait_4000_us = 0xF0
 } nrf24_auto_retransmit_delay;
 
 
@@ -111,23 +111,69 @@ typedef struct
  */
 uint32_t nrf24_basic_init(nrf24l01p * nrf24_instance);
 
-// @brief Reads *** register which always contains some non 0 data to check if device is connected.
+/*
+	@brief Read RF_CH register (which is never equals 0). If response data equals 0 - device is not connected, returns mistake code
+ */
 uint32_t nrf24_check_if_alive(nrf24l01p * nrf24_instance);
 
-// @brief
+/*
+	@brief Checks if all function pointers were initialized. If not returns mistake code.
+ */
 uint32_t nrf24_check_declarations(nrf24l01p * nrf24_instance);
 
-
-// @brief Can be called almost immediately afters board startup, but nrf24 need 100ms to start up into power-down mode, so check should be produced. In power-down all registers are available through SPI.
-// Думаю комментарий выше ошибочен
+/*
+	@brief Add PWR_UP bit to NRF24l01+ CONFIG register
+ */
 uint32_t nrf24_power_up(nrf24l01p * nrf24_instance);
 
+/*
+	@brief
+ */
+uint32_t nrf24_send_message(nrf24l01p * nrf24_instance, const void *payload, uint32_t payload_size, int32_t send_ac);
 
-// @brief Goes to power down mode directly from any device state. Not recommended but possible behavior.
-uint32_t nrf24_fast_power_down(nrf24l01p * nrf24_instance);
+/*
+	@brief
+ */
+uint32_t nrf24_tx_mode(nrf24l01p * nrf24_instance);
 
-// @brief Going to power down through standby-1 state even though it is possible to do from any other state directly. Recommended behavior.
-uint32_t nrf24_safe_power_down(nrf24l01p * nrf24_instance);
+/*
+	@brief
+ */
+uint32_t nrf24_rx_mode(nrf24l01p * nrf24_instance);
+
+/*
+	@brief
+ */
+uint32_t nrf24_update_retransmission_params(nrf24l01p * nrf24_instance, nrf24_auto_retransmit_delay new_retransmit_delay, uint32_t new_retransmit_count);
+
+// Not implemented yet
+
+uint32_t nrf24_is_new_data_availiable(nrf24l01p * nrf24_instance);
+
+uint32_t nrf24_read_message(nrf24l01p * nrf24_instance);
+
+uint32_t nrf24_enable_pipe1(nrf24l01p * nrf24_instance, uint8_t pipe_address[]);
+
+uint32_t nrf24_enable_pipe2_4(nrf24l01p * nrf24_instance, uint32_t pipe_number, uint8_t pipe_address_last_byte);
+
+uint32_t nrf24_set_tx_address(nrf24l01p * nrf24_instance, uint8_t new_tx_address[]);
+
+uint32_t nrf24_enable_dynamic_payload(nrf24l01p * nrf24_instance, uint32_t pipe_nuber);
+
+
+// @brief Enables interrupts with 1 in related input parameters, disables interrupts with 0. So to disable all interrupts call function with all 0 as inputs.
+uint32_t nrf24_enable_interrupts(nrf24l01p * nrf24_instance, uint32_t enable_rx_dr, uint32_t enable_tx_ds, uint32_t enable_max_rt);
+
+uint32_t nrf24_get_interrupts_status(nrf24l01p * nrf24_instance);
+
+
+///*
+//	@brief Goes to power down mode directly from any device state. Not recommended but possible behavior.
+// */
+//uint32_t nrf24_fast_power_down(nrf24l01p * nrf24_instance);
+//
+//// @brief Going to power down through standby-1 state even though it is possible to do from any other state directly. Recommended behavior.
+//uint32_t nrf24_safe_power_down(nrf24l01p * nrf24_instance);
 
 
 
