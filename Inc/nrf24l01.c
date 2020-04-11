@@ -1,8 +1,9 @@
 #include "nrf24l01.h"
 
-// ******************* Function ******************* // (V)
+// ******************* Function ******************* //
 /*
-	@brief Read RF_CH register (which is never equals 0). If response data equals 0 - device is not connected, returns mistake code
+	@brief Sets up nrf24l01+ with parameters specified in the structure of particular instance.
+		Doesn't power up device. Doesn't enable any mode. Should be called at least one time for every nrf24l01+ instance.
 
 	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
 
@@ -108,13 +109,15 @@ uint32_t nrf24_basic_init(nrf24l01p *nrf24_instance)
 }
 
 
-// ******************* Function ******************* // (V)
+// ******************* Function ******************* //
 /*
-	@brief Read RF_CH register (which is never equals 0). If response data equals 0 - device is not connected, returns mistake code
+	@brief Checks if particular devices responses, if not returns mistake code.
 
-	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+	@note Reads RF_CH register (which is never equals 0). If response data equals 0 - device is not connected, returns mistake code.
 
-	@return mistake code or 0 if no mistakes were found
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called.
+
+	@return mistake code or 0 if no mistakes were found.
 */
 // ************************************************ //
 uint32_t nrf24_check_if_alive(nrf24l01p *nrf24_instance)
@@ -133,9 +136,9 @@ uint32_t nrf24_check_if_alive(nrf24l01p *nrf24_instance)
 	return NRF24_DEVICE_IS_NOT_CONNECTED;
 }
 
-// ******************* Function ******************* // (V)
+// ******************* Function ******************* //
 /*
-	@brief Checks if all function pointers were initialized. If not returns mistake code.
+	@brief Checks if all function pointers of particular nrf24l01+ instance struct were initialized. If not returns mistake code.
 		Those mistakes should be handled as critical, so any function calling this one should immediately return mistake code.
 
 	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
@@ -175,7 +178,9 @@ uint32_t nrf24_check_declarations(nrf24l01p *nrf24_instance)
 
 // ******************* Function ******************* //
 /*
-	@brief change device setup to TX, powers device up, but not pulls CE logic high for power efficiency - device stays in standby-1.
+	@brief Changes device setup to TX, powers device up. Device is ready to transmit data.
+
+	@note Doesn't pull CE logic high for power efficiency - device stays in standby-1. CE is used only in data transmission.
 
 	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
 
@@ -222,9 +227,9 @@ uint32_t nrf24_tx_mode(nrf24l01p *nrf24_instance)
 	return 0;
 }
 
-// ******************* Function ******************* // (V)
+// ******************* Function ******************* //
 /*
-	@brief Changes device settings to RX, powers up the device, sets CE in logic high - start device.
+	@brief Changes device settings to RX, powers up the device, start device. Device is ready to receive data.
 
 	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
 
@@ -274,66 +279,18 @@ uint32_t nrf24_rx_mode(nrf24l01p *nrf24_instance)
 	return 0;
 }
 
-// ******************* Function ******************* // (V)
+// ******************* Function ******************* //
 /*
-	@brief Sets new values for retransmit delay and count of retransmissions for particular nrf24l01+ device.
-		If retransmit count = 0 no retransmissions are produced.
-		This setup is very important if data is transmitted with ACK message.
-		To have ability to retransmit 32 bytes of data with ACC, retransmit delay should be at least 500us. 250us (default value) is enough for:
-		- 5 bytes payload at 1 Mbps data rate;
-		- 15 bytes palyload at 2 Mbps data rate.
-
-	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
-	@param [in] new_retransmit_delay - new value of retransmission delay, should be expressed as nrf24_auto_retransmit_delay enum member
-	@param [in] new_retransmit_count - new retransmit count
-
-	@return first found mistake code or 0 if no mistakes were found
- */
-// ************************************************ //
-uint32_t nrf24_update_retransmission_params(nrf24l01p * nrf24_instance, nrf24_auto_retransmit_delay new_retransmit_delay, uint32_t new_retransmit_count)
-{
-	// Check if device was initialized
-	if ( nrf24_instance->device_was_initialized == 0 )
-	{
-		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
-	}
-
-	uint32_t mistake_code = 0;
-
-	if(new_retransmit_count < 0)
-	{
-		new_retransmit_count = 0;
-		mistake_code = NRF24_WRONG_RETRANSMIT_COUNT;
-	}
-	else if ( new_retransmit_count > 15 )
-	{
-		new_retransmit_count = 15;
-		mistake_code = NRF24_WRONG_RETRANSMIT_COUNT;
-	}
-
-	nrf24_instance->csn_low();
-	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_SETUP_RETR);
-	nrf24_instance->spi_write_byte(new_retransmit_delay | new_retransmit_count);
-	nrf24_instance->csn_high();
-
-	return mistake_code;
-}
-
-// ******************* Function ******************* // (V)
-/*
-	@brief Sets new TX and RX pipe 0 addresses.
-		Addresses should be written if reverse order, so that they can be represented as they were stored in the array.
+	@brief Sets new TX and RX pipe 0 addresses. Address should be 5 bytes long. Powers device down, So after this function either nrf24_rx_mode or nrf24_tx_mode should be called.
 
 	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
 	@param [in] new_tx_address[5] - array which contains new tx address. Programmer must make sure, that array is exactly 5 elements long.
 
 	@return first found mistake code or 0 if no mistakes were found
 
-	@note This function doesn't put CE in logic High, so if before the function call nrf24 instance was in RX mode, it won't automatically return into it.
-		It is considered, that user only needs to change TX address when using device in TX mode, so CE should stay at logic low for power efficiency.
+	@note Addresses should be written in reverse order, so that they can be represented as they were stored in the array.
  */
 // ************************************************ //
-//@note This function doesn't put CE in logic High, so if operation ws
 uint32_t nrf24_set_tx_address(nrf24l01p * nrf24_instance, const uint8_t new_tx_address[5])
 {
 	// Check if device was initialized
@@ -366,6 +323,107 @@ uint32_t nrf24_set_tx_address(nrf24l01p * nrf24_instance, const uint8_t new_tx_a
 	return 0;
 }
 
+// ******************* Function ******************* //
+/*
+	@brief Sets new RX address for pipe 1. Address should be 5 bytes long. 4 first bytes are used as base for addresses of pipes 2 to 5.
+		Powers device down, So after this function either nrf24_rx_mode or nrf24_tx_mode should be called.
+
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+	@param [in] pipe_address[] - new base address of pipes 1-5 (first 4 bytes) and unique byte for pipe 1 (last byte). user should make sure, that array has a length of 5 bytes.
+
+	@return first found mistake code or 0 if no mistakes were found
+ */
+// ************************************************ //
+
+uint32_t nrf24_enable_pipe1(nrf24l01p * nrf24_instance, uint8_t pipe_address[])
+{
+	if ( nrf24_instance->device_was_initialized == 0 )
+	{
+		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
+	}
+
+	// Stop RX mode if was on
+	nrf24_instance->ce_low();
+
+	// Write new pipe 1 address
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_RX_ADDR_P1);
+	for(uint32_t i = 0; i < 5; ++i)
+	{
+		nrf24_instance->spi_write_byte(pipe_address[4-i]);
+	}
+	nrf24_instance->csn_high();
+
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_R_REGISTER | NRF24_EN_RXADDR);
+	uint8_t register_state = nrf24_instance->spi_write_byte(NRF24_NOP);
+	nrf24_instance->csn_high();
+
+	register_state |= 0x02;
+
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_EN_RXADDR);
+	nrf24_instance->spi_write_byte(register_state);
+	nrf24_instance->csn_high();
+
+	return 0;
+}
+
+// ******************* Function ******************* //
+/*
+	@brief Sets new RX address for pipe from 2 to 5 and enables corresponding pipe. Use base from pipe 4, so only one byte changes.
+		Powers device down, So after this function either nrf24_rx_mode or nrf24_tx_mode should be called.
+
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called.
+	@param [in] pipe_number - number of the pipe to be enabled.
+	@param [in] pipe_address_last_byte - last address byte for the particular pipe.
+
+	@return first found mistake code or 0 if no mistakes were found
+ */
+// ************************************************ //
+uint32_t nrf24_enable_pipe2_4(nrf24l01p * nrf24_instance, uint32_t pipe_number, uint8_t pipe_address_last_byte)
+{
+	if ( nrf24_instance->device_was_initialized == 0 )
+	{
+		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
+	}
+
+	// Stop RX mode if was on
+	nrf24_instance->ce_low();
+
+	// Wrong pipe number is critical mistake
+	if ( pipe_number < 2 || pipe_number > 5 )
+	{
+		return NRF24_WRONG_PIPE_NUMBER;
+	}
+
+	// Set new address
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | (NRF24_RX_ADDR_P0 + pipe_number));
+	nrf24_instance->spi_write_byte(pipe_address_last_byte);
+	nrf24_instance->csn_high();
+
+	// Set payload size
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | (NRF24_RX_PW_P0 + pipe_number));
+	nrf24_instance->spi_write_byte(nrf24_instance->payload_size_in_bytes);
+	nrf24_instance->csn_high();
+
+	// Enable pipe by reading current state and adding new bit into it
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_R_REGISTER | NRF24_EN_RXADDR);
+	uint8_t current_register_state = nrf24_instance->spi_write_byte(NRF24_NOP);
+	nrf24_instance->csn_high();
+
+	current_register_state |= 1<<pipe_number;
+
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_EN_RXADDR);
+	nrf24_instance->spi_write_byte(current_register_state);
+	nrf24_instance->csn_high();
+
+	return 0;
+}
 
 
 // ******************* Function ******************* // (V)
@@ -501,110 +559,7 @@ uint32_t nrf24_enable_interrupts(nrf24l01p *nrf24_instance,	uint32_t enable_rx_d
 	return 0;
 }
 
-// ******************* Function ******************* //
-/*
-	@brief Sets new TX address for pipe 1.
 
-	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
-	@param [in] pipe_address[] - new base address of pipes 1-5 and unic bit for pipe 1. user should make sure, that array has a length of 5 bytes.
-
-	@return first found mistake code or 0 if no mistakes were found
-
-	@note Function puts CE into logic low and doesn't start it back. So if function was called after nrf24_rx_mode(), CE should be set logic high
-		either by calling ce_high() or nrf24_rx_mode() once again.
- */
-// ************************************************ //
-
-uint32_t nrf24_enable_pipe1(nrf24l01p * nrf24_instance, uint8_t pipe_address[])
-{
-	if ( nrf24_instance->device_was_initialized == 0 )
-	{
-		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
-	}
-
-	// Stop RX mode if was on
-	nrf24_instance->ce_low();
-
-	// Write new pipe 1 address
-	nrf24_instance->csn_low();
-	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_RX_ADDR_P1);
-	for(uint32_t i = 0; i < 5; ++i)
-	{
-		nrf24_instance->spi_write_byte(pipe_address[4-i]);
-	}
-	nrf24_instance->csn_high();
-
-	nrf24_instance->csn_low();
-	nrf24_instance->spi_write_byte(NRF24_R_REGISTER | NRF24_EN_RXADDR);
-	uint8_t register_state = nrf24_instance->spi_write_byte(NRF24_NOP);
-	nrf24_instance->csn_high();
-
-	register_state |= 0x02;
-
-	nrf24_instance->csn_low();
-	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_EN_RXADDR);
-	nrf24_instance->spi_write_byte(register_state);
-	nrf24_instance->csn_high();
-
-	return 0;
-}
-
-// ******************* Function ******************* //
-/*
-	@brief Sets new TX address for pipe 1.
-
-	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
-	@param [in] pipe_address[] - new base address of pipes 1-5 and unic bit for pipe 1. user should make sure, that array has a length of 5 bytes.
-
-	@return first found mistake code or 0 if no mistakes were found
-
-	@note Function puts CE into logic low and doesn't start it back. So if function was called after nrf24_rx_mode(), CE should be set logic high
-		either by calling ce_high() or nrf24_rx_mode() once again.
- */
-// ************************************************ //
-uint32_t nrf24_enable_pipe2_4(nrf24l01p * nrf24_instance, uint32_t pipe_number, uint8_t pipe_address_last_byte)
-{
-	if ( nrf24_instance->device_was_initialized == 0 )
-	{
-		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
-	}
-
-	// Stop RX mode if was on
-	nrf24_instance->ce_low();
-
-	// Wrong pipe number is critical mistake
-	if ( pipe_number < 2 || pipe_number > 5 )
-	{
-		return NRF24_WRONG_PIPE_NUMBER;
-	}
-
-	// Set new address
-	nrf24_instance->csn_low();
-	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | (NRF24_RX_ADDR_P0 + pipe_number));
-	nrf24_instance->spi_write_byte(pipe_address_last_byte);
-	nrf24_instance->csn_high();
-
-	// Set payload size
-	nrf24_instance->csn_low();
-	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | (NRF24_RX_PW_P0 + pipe_number));
-	nrf24_instance->spi_write_byte(nrf24_instance->payload_size_in_bytes);
-	nrf24_instance->csn_high();
-
-	// Enable pipe by reading current state and adding new bit into it
-	nrf24_instance->csn_low();
-	nrf24_instance->spi_write_byte(NRF24_R_REGISTER | NRF24_EN_RXADDR);
-	uint8_t current_register_state = nrf24_instance->spi_write_byte(NRF24_NOP);
-	nrf24_instance->csn_high();
-
-	current_register_state |= 1<<pipe_number;
-
-	nrf24_instance->csn_low();
-	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_EN_RXADDR);
-	nrf24_instance->spi_write_byte(current_register_state);
-	nrf24_instance->csn_high();
-
-	return 0;
-}
 
 // ******************* Function ******************* //
 /*
@@ -683,6 +638,51 @@ uint32_t nrf24_read_message(nrf24l01p * nrf24_instance, void * payload_storage, 
 	nrf24_instance->csn_low();
 	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_STATUS);
 	nrf24_instance->spi_write_byte(NRF24_MASK_RX_DR);
+	nrf24_instance->csn_high();
+
+	return mistake_code;
+}
+
+// ******************* Function ******************* // (V)
+/*
+	@brief Sets new values for retransmit delay and count of retransmissions for particular nrf24l01+ device.
+		If retransmit count = 0 no retransmissions are produced.
+		This setup is very important if data is transmitted with ACK message.
+		To have ability to retransmit 32 bytes of data with ACC, retransmit delay should be at least 500us. 250us (default value) is enough for:
+		- 5 bytes payload at 1 Mbps data rate;
+		- 15 bytes palyload at 2 Mbps data rate.
+
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+	@param [in] new_retransmit_delay - new value of retransmission delay, should be expressed as nrf24_auto_retransmit_delay enum member
+	@param [in] new_retransmit_count - new retransmit count
+
+	@return first found mistake code or 0 if no mistakes were found
+ */
+// ************************************************ //
+uint32_t nrf24_update_retransmission_params(nrf24l01p * nrf24_instance, nrf24_auto_retransmit_delay new_retransmit_delay, uint32_t new_retransmit_count)
+{
+	// Check if device was initialized
+	if ( nrf24_instance->device_was_initialized == 0 )
+	{
+		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
+	}
+
+	uint32_t mistake_code = 0;
+
+	if(new_retransmit_count < 0)
+	{
+		new_retransmit_count = 0;
+		mistake_code = NRF24_WRONG_RETRANSMIT_COUNT;
+	}
+	else if ( new_retransmit_count > 15 )
+	{
+		new_retransmit_count = 15;
+		mistake_code = NRF24_WRONG_RETRANSMIT_COUNT;
+	}
+
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_SETUP_RETR);
+	nrf24_instance->spi_write_byte(new_retransmit_delay | new_retransmit_count);
 	nrf24_instance->csn_high();
 
 	return mistake_code;
