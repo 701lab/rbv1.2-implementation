@@ -5,11 +5,6 @@
 #include "nrf24l01_registers.h"
 #include "nrf24l01p_mistakes.h"
 
-//** Place for development of new library which will fully replace the old one. Work in progress so far. **//
-
-// рекомендуемое поведение устрйоства: выход в активный режим только тогда, когда необходимо отправлять данные и возвращаться в standby после для ожидания новой партии (ниже энергопотребление) Надо посмотреть,
-// 	работает ли ныне существующая функция по такой логике и если нет, сделать два ваохможных варианта работы: динамический (экономит энергию постоянно включаясь и выключаясь) и статический (постоянно включен)
-
 /*
 	General library overwiew
 
@@ -122,11 +117,6 @@ uint32_t nrf24_check_if_alive(nrf24l01p * nrf24_instance);
 uint32_t nrf24_check_declarations(nrf24l01p * nrf24_instance);
 
 /*
-	@brief Add PWR_UP bit to NRF24l01+ CONFIG register.
- */
-uint32_t nrf24_power_up(nrf24l01p * nrf24_instance);
-
-/*
 	@brief
  */
 uint32_t nrf24_send_message(nrf24l01p * nrf24_instance, void *payload, uint32_t payload_size, int32_t send_ac);
@@ -137,7 +127,7 @@ uint32_t nrf24_send_message(nrf24l01p * nrf24_instance, void *payload, uint32_t 
 uint32_t nrf24_tx_mode(nrf24l01p * nrf24_instance);
 
 /*
-	@brief Changes device settings to RX, if device is powered up goes to RX mode.
+	@brief Changes device settings to RX, powers up the device, sets CE in logic high - start device.
  */
 uint32_t nrf24_rx_mode(nrf24l01p * nrf24_instance);
 
@@ -156,80 +146,21 @@ uint32_t nrf24_set_tx_address(nrf24l01p * nrf24_instance, const uint8_t new_tx_a
  */
 uint32_t nrf24_enable_interrupts(nrf24l01p * nrf24_instance, uint32_t enable_rx_dr, uint32_t enable_tx_ds, uint32_t enable_max_rt);
 
+/*
+	@brief Reads NRF24_STATUS register, clears all interrupts and returns only interrupt flags states.
+ */
 uint32_t nrf24_get_interrupts_status(nrf24l01p * nrf24_instance);
 
-
-// Not implemented yet
-
-uint32_t nrf24_is_new_data_availiable(nrf24l01p * nrf24_instance);
-
-uint32_t nrf24_read_message(nrf24l01p * nrf24_instance);
-
+/*
+	@brief Sets new TX address for pipe 1.
+ */
 uint32_t nrf24_enable_pipe1(nrf24l01p * nrf24_instance, uint8_t pipe_address[]);
 
 uint32_t nrf24_enable_pipe2_4(nrf24l01p * nrf24_instance, uint32_t pipe_number, uint8_t pipe_address_last_byte);
 
+uint8_t nrf24_is_new_data_availiable(nrf24l01p * nrf24_instance);
 
+uint32_t nrf24_read_message(nrf24l01p * nrf24_instance, void * payload_storage, uint32_t pyaload_size);
 
-
-
-///*
-//	@brief Goes to power down mode directly from any device state. Not recommended but possible behavior.
-// */
-//uint32_t nrf24_fast_power_down(nrf24l01p * nrf24_instance);
-//
-//// @brief Going to power down through standby-1 state even though it is possible to do from any other state directly. Recommended behavior.
-//uint32_t nrf24_safe_power_down(nrf24l01p * nrf24_instance);
-
-//*********************************************************************************************************//
-
-
-
-//hardware based defines: 
-/*
-	In this section happaens all the define magic, so that NRF24 can work properly. Also you need not to forgot to setup needed 
-	periperal. You can do this just in your code and then call initNRF_SPI() function. Or you can jange the initSystemSPI() function and call it first.
-*/
-
-
-//**********************//
-
-// RF_SETUP values end result = RF_POWER|DATA_RATE
-#define RF_POWER 0x04  					// 0x00 = -18dBm // 0x02 = -12dBm // 0x04 = -6dBm // 0x06 = 0dBm//
-#define DATA_RATE 0x00 					// 0x00 = 1Mbps // 0x08 = 2Mbps // 0x20 = 250kbps //
-
-// RF_CH values
-#define RF_CH_VAL 45 						// frequency channel nRF24L01+ operates on [0,127]
-
-// EN_RXADDR values // reset state 0x03
-// enables data pipes, bit for pipe [0,5]
-#define EN_RXADDR_VAL = 0x03 		// use of pipe 0 and 1
-
-// NRF_CONFIG values
-// Enable CRC | CRC encoding scheme (0 - 1 byte, 1 - 2 bytes) | PWR_UP!! | PRIM_RX
-#define CONFIG_VAL 0x0E 				// 0x0E - typical transmitter setup // 0x0F - typical receiver setup (PRIM_RX = 1) //
-
-// NRF_STATUS values
-#define NRF_STATUS_RESET 0x70 	// reset all interupts flags
-
-// Transmiter and reciever payload lenght
-#define PAYLOAD_LENGTH 12 			// number of bytes to be transmited and recieved. Roght now all pipes use the same value
-																// can be updated. so each pype will have it own pyaload length. Values [1, 32]
-
-void nrf24_basic_init_old(void);    		// consist NRF registers setup
-
-
-
-void setTxAddress(uint8_t transiverAddress[5]);
-
-void tx_mode(void); // goes to tx mode
-void rx_mode(void); // goes to rx mode
-
-void enablePype(uint8_t pypeAddress[5],uint32_t pipeNum);
-
-void nrf24_send_data(const void *data, uint32_t PayloadSize, int no_ack);
-
-uint8_t dataAvailiable(void);//-
-void readData(void* data, uint32_t PayloadSize);
 
 #endif /* NRF24L01_PLUS_H_ */

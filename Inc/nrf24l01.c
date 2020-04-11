@@ -135,42 +135,6 @@ uint32_t nrf24_check_if_alive(nrf24l01p *nrf24_instance)
 
 // ******************* Function ******************* // (V)
 /*
-	@brief Add PWR_UP bit to NRF24l01+ CONFIG register.
-		Doesn't touch CE pin. So id CE = 0 device will enter standby-1 mode. IF CE = 1 depending on PRIM_RX and RX FIFO can enter either RX, TX or standby-2 mode.
-
-	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
-
-	@return first found mistake code or 0 if no mistakes were found
- */
-// ************************************************ //
-uint32_t nrf24_power_up(nrf24l01p *nrf24_instance)
-{
-	// Check if device was initialized
-	if(nrf24_instance->device_was_initialized == 0)
-	{
-		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
-	}
-
-	// Read current config state
-	nrf24_instance->csn_low();
-	nrf24_instance->spi_write_byte(NRF24_R_REGISTER | NRF24_CONFIG);
-	uint8_t current_register_state = nrf24_instance->spi_write_byte(NRF24_NOP);
-	nrf24_instance->csn_high();
-
-	// Add power up to current config
-	current_register_state |= NRF24_PWR_UP;
-
-	// Write new config state
-	nrf24_instance->csn_low();
-	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_CONFIG);
-	nrf24_instance->spi_write_byte(current_register_state);
-	nrf24_instance->csn_high();
-
-	return 0;
-}
-
-// ******************* Function ******************* // (V)
-/*
 	@brief Checks if all function pointers were initialized. If not returns mistake code.
 		Those mistakes should be handled as critical, so any function calling this one should immediately return mistake code.
 
@@ -211,7 +175,7 @@ uint32_t nrf24_check_declarations(nrf24l01p *nrf24_instance)
 
 // ******************* Function ******************* //
 /*
-	@brief change device mode to TX, but not pulls CE logic high for power efficiency - if powered up stays in standby-1.
+	@brief change device setup to TX, powers device up, but not pulls CE logic high for power efficiency - device stays in standby-1.
 
 	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
 
@@ -238,10 +202,10 @@ uint32_t nrf24_tx_mode(nrf24l01p *nrf24_instance)
 	// Add power up to current config
 	current_register_state &= ~NRF24_PRIM_RX;
 
-	// Write new config state
+	// Write new config state with POWER_UP
 	nrf24_instance->csn_low();
 	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_CONFIG);
-	nrf24_instance->spi_write_byte(current_register_state);
+	nrf24_instance->spi_write_byte(current_register_state | NRF24_PWR_UP);
 	nrf24_instance->csn_high();
 
 	// Clear TX FIFO if it was not empty
@@ -258,9 +222,9 @@ uint32_t nrf24_tx_mode(nrf24l01p *nrf24_instance)
 	return 0;
 }
 
-// ******************* Function ******************* //
+// ******************* Function ******************* // (V)
 /*
-	@brief Changes device settings to RX, if device is powered up goes to RX mode
+	@brief Changes device settings to RX, powers up the device, sets CE in logic high - start device.
 
 	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
 
@@ -287,10 +251,10 @@ uint32_t nrf24_rx_mode(nrf24l01p *nrf24_instance)
 	// Add power up to current config
 	current_register_state |= NRF24_PRIM_RX;
 
-	// Write new config state
+	// Write new config state with power up
 	nrf24_instance->csn_low();
 	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_CONFIG);
-	nrf24_instance->spi_write_byte(current_register_state);
+	nrf24_instance->spi_write_byte(current_register_state | NRF24_PWR_UP);
 	nrf24_instance->csn_high();
 
 	// Clear RX FIFO if it was not empty
@@ -466,7 +430,7 @@ uint32_t nrf24_send_message(nrf24l01p * nrf24_instance,  void *payload, uint32_t
 
 // ******************* Function ******************* // (V)
 /*
-	@brief Reads NRF24_STATUS register, clears all interrupts and returns only interrupt flags states
+	@brief Reads NRF24_STATUS register, clears all interrupts and returns only interrupt flags states.
 
 	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
 
@@ -484,6 +448,18 @@ uint32_t nrf24_get_interrupts_status(nrf24l01p * nrf24_instance)
 	return interrupt_status;
 }
 
+// ******************* Function ******************* // (V)
+/*
+	@brief Enables interrupts with 1 in related input parameters, disables interrupts with 0. So to disable all interrupts call function with all 0 as inputs.
+
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+	@param [in] enable_rx_dr - flag to enable RX interrupt
+	@param [in] enable_tx_dr - flag to enable TX interrupt
+	@param [in] enable_max_rt - flag to enable rx FIFO overflow interrupt
+
+	@return first found mistake code or 0 if no mistakes were found
+ */
+// ************************************************ //
 uint32_t nrf24_enable_interrupts(nrf24l01p *nrf24_instance,	uint32_t enable_rx_dr, uint32_t enable_tx_ds, uint32_t enable_max_rt)
 {
 	if ( nrf24_instance->device_was_initialized == 0 )
@@ -493,15 +469,15 @@ uint32_t nrf24_enable_interrupts(nrf24l01p *nrf24_instance,	uint32_t enable_rx_d
 
 	uint8_t interrupts_to_be_enabled = 0;
 
-	if ( enable_rx_dr > 0 )
+	if ( enable_rx_dr == 0 )
 	{
 		interrupts_to_be_enabled |= 0x40;
 	}
-	if ( enable_tx_ds > 0 )
+	if ( enable_tx_ds == 0 )
 	{
 		interrupts_to_be_enabled |= 0x20;
 	}
-	if ( enable_max_rt > 0 )
+	if ( enable_max_rt == 0 )
 	{
 		interrupts_to_be_enabled |= 0x10;
 	}
@@ -513,7 +489,8 @@ uint32_t nrf24_enable_interrupts(nrf24l01p *nrf24_instance,	uint32_t enable_rx_d
 	nrf24_instance->csn_high();
 
 	// Remove interrupt masking from current config state
-	current_register_state &= ~interrupts_to_be_enabled;
+	current_register_state &= ~NRF24_INTERRUPTS_MASK;
+	current_register_state |= interrupts_to_be_enabled;
 
 	// Write new config state
 	nrf24_instance->csn_low();
@@ -524,216 +501,191 @@ uint32_t nrf24_enable_interrupts(nrf24l01p *nrf24_instance,	uint32_t enable_rx_d
 	return 0;
 }
 
-
-
-
-
-//*************************************************************
-
-
-
-//***********Set TX address***********// 
-// chainging RX_P0 and TX adresses
-//************************************//
-
-void setTxAddress(uint8_t transiverAddress[5])
-{
-	NRF24_CE_LOW // stop module before changing of setups
-
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_RX_ADDR_P0); //we need to change Rx address as well
-	for(int i = 0; i < 5; ++i){
-		nrf24_spi_write(transiverAddress[4-i]);
-	}
-	NRF24_CSN_HIGH
-
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_TX_ADDR); //we need to change Rx address as well
-	for(int i = 0; i < 5; ++i){
-		nrf24_spi_write(transiverAddress[4-i]);
-	}
-	NRF24_CSN_HIGH
-
-	NRF24_CE_HIGH// start module
-}
-
-
-//***********Enable pype 1***********// 
+// ******************* Function ******************* //
 /*
-	Important to remember, that all adresses for pipe1 - 5 should be ecual despite last byte. So here
-	it is implemented in the way that we believe that person will not mistake in call of this function.
-	If pipe = 1 just write it fully. if pipe != 1 write only last byte. I hope, that if pipe != 1 pipe one is already addressed
-*/
-//***********************************//
+	@brief Sets new TX address for pipe 1.
 
-void enablePype(uint8_t pypeAddress[5], uint32_t pipeNum)
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+	@param [in] pipe_address[] - new base address of pipes 1-5 and unic bit for pipe 1. user should make sure, that array has a length of 5 bytes.
+
+	@return first found mistake code or 0 if no mistakes were found
+
+	@note Function puts CE into logic low and doesn't start it back. So if function was called after nrf24_rx_mode(), CE should be set logic high
+		either by calling ce_high() or nrf24_rx_mode() once again.
+ */
+// ************************************************ //
+
+uint32_t nrf24_enable_pipe1(nrf24l01p * nrf24_instance, uint8_t pipe_address[])
 {
-	NRF24_CE_LOW
-	
-	NRF24_CSN_LOW
-	if(pipeNum > 5 || pipeNum == 0){
-		return;
-	}
-	else{
-		if(pipeNum == 1){
-				nrf24_spi_write(NRF24_W_REGISTER | NRF24_RX_ADDR_P1); //0x2B
-				for(int i = 0; i < 5; ++i){
-					nrf24_spi_write(pypeAddress[4-i]);
-				}
-				NRF24_CSN_HIGH
-		}
-		else{
-			nrf24_spi_write(NRF24_W_REGISTER | (NRF24_RX_ADDR_P0 + pipeNum));
-			nrf24_spi_write(pypeAddress[4]);
-			NRF24_CSN_HIGH
-
-			NRF24_CSN_LOW																					// mind trick to enable pipe other then 0 or 1
-			nrf24_spi_write(NRF24_R_REGISTER | NRF24_EN_RXADDR);
-			uint8_t register_state = nrf24_spi_write(0xFF);
-			NRF24_CSN_HIGH
-			
-			NRF24_CSN_LOW
-			nrf24_spi_write(NRF24_W_REGISTER | NRF24_EN_RXADDR);
-			nrf24_spi_write(register_state | 1<<pipeNum);
-			NRF24_CSN_HIGH
-		}
+	if ( nrf24_instance->device_was_initialized == 0 )
+	{
+		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
 	}
 
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | (NRF24_RX_PW_P0 + pipeNum)); //0x32
-	nrf24_spi_write(PAYLOAD_LENGTH);
-	NRF24_CSN_HIGH
+	// Stop RX mode if was on
+	nrf24_instance->ce_low();
 
-	NRF24_CE_HIGH
-}
-
-
-
-
-
-////***********TX mode***********//
-//// Turn on RX mode
-////*****************************//
-//
-//void rx_mode(void)
-//{
-//	NRF24_CE_LOW
-//
-//	NRF24_CSN_LOW
-//	nrf24_spi_write(NRF24_W_REGISTER | NRF24_CONFIG);//0x20
-//	nrf24_spi_write(0x0F); // Receiver mod
-//	NRF24_CSN_HIGH
-//
-//	NRF24_CSN_LOW
-//	nrf24_spi_write(NRF24_FLUSH_RX);
-//	NRF24_CSN_HIGH
-//
-//	NRF24_CSN_LOW
-//	nrf24_spi_write(NRF24_W_REGISTER | NRF24_STATUS); //0x27
-//	nrf24_spi_write(0x70);
-//	NRF24_CSN_HIGH
-//
-//	NRF24_CE_HIGH
-//}
-
-
-//***************Send data**************// 
-/*
-Send data by splitting it into single bytes. Weird method, but really beautiful and resources friendly.
-*/
-//**************************************//
-
-void nrf24_send_data(const void* data, uint32_t PayloadSize, int no_ack)
-{
-//	NRF24_CE_LOW
-
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_FLUSH_TX);
-	NRF24_CSN_HIGH
-
-	uint8_t* current = data;
-	int tmp =  PAYLOAD_LENGTH - PayloadSize;
-
-	NRF24_CSN_LOW
-
-	nrf24_spi_write(no_ack == 0 ? NRF24_W_TX_PAYLOAD : W_TX_PAYLOAD_NO_ACK);
-
-	for(int i = 0; i < PayloadSize; ++i){
-		nrf24_spi_write(*current);
-		current++;
+	// Write new pipe 1 address
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_RX_ADDR_P1);
+	for(uint32_t i = 0; i < 5; ++i)
+	{
+		nrf24_instance->spi_write_byte(pipe_address[4-i]);
 	}
-	for(int i = 0; i < tmp; ++i){
-		nrf24_spi_write(0x00);
-	}
+	nrf24_instance->csn_high();
 
-	NRF24_CSN_HIGH //end of sending procedure
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_R_REGISTER | NRF24_EN_RXADDR);
+	uint8_t register_state = nrf24_instance->spi_write_byte(NRF24_NOP);
+	nrf24_instance->csn_high();
 
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_STATUS); //0x27
-	nrf24_spi_write(0x70); // reseting status flags
-	NRF24_CSN_HIGH
+	register_state |= 0x02;
 
-	NRF24_CE_HIGH
-	for (int i = 0; i < 1000; ++i){}
-	NRF24_CE_LOW
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_EN_RXADDR);
+	nrf24_instance->spi_write_byte(register_state);
+	nrf24_instance->csn_high();
 
-}
-
-
-//***********Check if data is availiable***********// 
-/* 
-check FIFO status to see if data is availiable
-not returning size of payload becouse of the weird delay in work when i try
-*/
-//*************************************************//
-
-uint8_t dataAvailiable(void)
-{
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_FIFO_STATUS);
-	uint8_t tmp = nrf24_spi_write(0xFF);
-	NRF24_CSN_HIGH
-	
-	if(((tmp & 0x01) != 0x01)){
-		return 1;//(tmp & 0x0E)>>1; - to return pype number
-	}
 	return 0;
 }
 
-
-//************read data from NRF24l01+*************// 
+// ******************* Function ******************* //
 /*
- If i right, all data srores in memory byte by byte, so, no matter what length we send we will be able to reconstruct data by
- fulling any array with needed data. If it works, same aproach can work with transmition, which will be greate.
-*/
-//*************************************************//
-void readData(void *data, uint32_t PayloadSize)
+	@brief Sets new TX address for pipe 1.
+
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+	@param [in] pipe_address[] - new base address of pipes 1-5 and unic bit for pipe 1. user should make sure, that array has a length of 5 bytes.
+
+	@return first found mistake code or 0 if no mistakes were found
+
+	@note Function puts CE into logic low and doesn't start it back. So if function was called after nrf24_rx_mode(), CE should be set logic high
+		either by calling ce_high() or nrf24_rx_mode() once again.
+ */
+// ************************************************ //
+uint32_t nrf24_enable_pipe2_4(nrf24l01p * nrf24_instance, uint32_t pipe_number, uint8_t pipe_address_last_byte)
 {
-
-	uint8_t *current = data;
-
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_R_RX_PAYLOAD);
-	for ( int i = 0; i < PayloadSize; ++i )
+	if ( nrf24_instance->device_was_initialized == 0 )
 	{
-		*current++ = nrf24_spi_write(0xFF); //
+		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
 	}
 
-	int tmp = PAYLOAD_LENGTH - PayloadSize;
-	for ( int i = 0; i < tmp; ++i )
+	// Stop RX mode if was on
+	nrf24_instance->ce_low();
+
+	// Wrong pipe number is critical mistake
+	if ( pipe_number < 2 || pipe_number > 5 )
 	{
-		nrf24_spi_write(0xFF);
+		return NRF24_WRONG_PIPE_NUMBER;
 	}
 
-	NRF24_CSN_HIGH
+	// Set new address
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | (NRF24_RX_ADDR_P0 + pipe_number));
+	nrf24_instance->spi_write_byte(pipe_address_last_byte);
+	nrf24_instance->csn_high();
 
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_FLUSH_RX);
-	NRF24_CSN_HIGH
+	// Set payload size
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | (NRF24_RX_PW_P0 + pipe_number));
+	nrf24_instance->spi_write_byte(nrf24_instance->payload_size_in_bytes);
+	nrf24_instance->csn_high();
 
-	NRF24_CSN_LOW
-	nrf24_spi_write(NRF24_W_REGISTER | NRF24_STATUS);
-	nrf24_spi_write(NRF_STATUS_RESET);
-	NRF24_CSN_HIGH
+	// Enable pipe by reading current state and adding new bit into it
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_R_REGISTER | NRF24_EN_RXADDR);
+	uint8_t current_register_state = nrf24_instance->spi_write_byte(NRF24_NOP);
+	nrf24_instance->csn_high();
+
+	current_register_state |= 1<<pipe_number;
+
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_EN_RXADDR);
+	nrf24_instance->spi_write_byte(current_register_state);
+	nrf24_instance->csn_high();
+
+	return 0;
 }
 
+// ******************* Function ******************* //
+/*
+	@brief Sets new TX address for pipe 1.
+
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+	@param [in] pipe_address[] - new base address of pipes 1-5 and unic bit for pipe 1. user should make sure, that array has a length of 5 bytes.
+
+	@return first found mistake code or 0 if no mistakes were found
+
+	@note Function puts CE into logic low and doesn't start it back. So if function was called after nrf24_rx_mode(), CE should be set logic high
+		either by calling ce_high() or nrf24_rx_mode() once again.
+ */
+// ************************************************ //
+uint8_t nrf24_is_new_data_availiable(nrf24l01p * nrf24_instance)
+{
+	// IF device is not initialized will return no data
+	if ( nrf24_instance->device_was_initialized == 0 )
+	{
+		return 0;
+	}
+
+	nrf24_instance->csn_low();
+	uint8_t current_device_status = nrf24_instance->spi_write_byte(NRF24_R_REGISTER | NRF24_FIFO_STATUS);
+	uint8_t current_fifo_status = nrf24_instance->spi_write_byte(NRF24_NOP);
+	nrf24_instance->csn_high();
+
+	if((current_fifo_status & 0x01) == 0)
+	{
+
+		return (current_device_status &0x0E) >> 1;
+	}
+
+	return 0;
+}
+
+uint32_t nrf24_read_message(nrf24l01p * nrf24_instance, void * payload_storage, uint32_t payload_size)
+{
+	if ( nrf24_instance->device_was_initialized == 0 )
+	{
+		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
+	}
+
+	uint8_t mistake_code = 0;
+
+	uint8_t *current_byte_to_be_read = payload_storage;
+
+	// Check for proper payload size
+	if(payload_size > nrf24_instance->payload_size_in_bytes)
+	{
+		payload_size = nrf24_instance->payload_size_in_bytes;
+		mistake_code = NRF24_WRONG_PAYLOAD_SIZE;
+	}
+	if(payload_size < 0)
+	{
+		return NRF24_WRONG_PAYLOAD_SIZE;
+	}
+
+	// Read data stored in RX FIFO
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_R_RX_PAYLOAD);
+	for (uint32_t i = 0; i < payload_size; ++i)
+	{
+		*current_byte_to_be_read = nrf24_instance->spi_write_byte(NRF24_NOP);
+		current_byte_to_be_read++;
+	}
+
+	uint32_t zeros_to_be_read = nrf24_instance->payload_size_in_bytes - payload_size;
+	for(uint32_t i = 0; i < zeros_to_be_read; ++i)
+	{
+		nrf24_instance->spi_write_byte(NRF24_NOP);
+	}
+	nrf24_instance->csn_high();
+
+	// Clear new RX data interrupt flag
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_STATUS);
+	nrf24_instance->spi_write_byte(NRF24_MASK_RX_DR);
+	nrf24_instance->csn_high();
+
+	return mistake_code;
+}
+
+// EOF

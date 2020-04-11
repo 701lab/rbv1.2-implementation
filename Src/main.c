@@ -15,8 +15,9 @@
 #include "device.h"
 
 int16_t icm_data[6] = { 0, 0, 0, 0, 0, 0 };
-//float nrf_data[3] = {1.0f, 2.0f, 3.0f};
-float nrf_data[2] = {1.0f, 2.0f};
+float nrf_data[3] = {1.0f, 2.0f, 3.0f};
+//float nrf_data[2] = {1.0f, 2.0f};
+float nrf_input_data[3] = {0.0f, 0.0f, 0.0f};
 
 uint32_t control_systems_counter = 0;
 float	system_time_increment = 1.0f/SYSTICK_FREQUENCY;
@@ -76,20 +77,21 @@ icm_20600_instance robot_imu;
 
 nrf24l01p robot_nrf24;
 
-uint8_t addrForTx[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
+uint8_t new_addr_for_nrf[5] = {0x77,0x87,0x97,0xA7,0xB7};
+uint8_t new_addr_for_nrf_tx[5] = {0x77,0x87,0x97,0xA7,0x12};
+uint8_t other_pipe_address = 0x12;
 
 uint8_t current_register_state = 0;
 
 
 uint32_t current_int_stat1 = 0;
 uint32_t current_int_stat2 = 0;
-
-
+uint8_t pipe_number = 0;
+uint32_t data_reads = 0;
 
 
 int main(void)
 {
-
 	motor1.motor_disable = gpioc6_low;
 	motor1.motor_enable = gpioc6_high;
 	motor1.set_pwm_duty_cycle = set_motor1_pwm;
@@ -147,9 +149,14 @@ int main(void)
 
 	add_to_mistakes_log(nrf24_basic_init(&robot_nrf24));
 
-	add_to_mistakes_log(nrf24_power_up(&robot_nrf24));
+	add_to_mistakes_log(nrf24_enable_pipe1(&robot_nrf24, new_addr_for_nrf));
+	add_to_mistakes_log(nrf24_enable_pipe2_4(&robot_nrf24, 3, other_pipe_address));
 
-	add_to_mistakes_log(nrf24_set_tx_address(&robot_nrf24, addrForTx));
+	add_to_mistakes_log(nrf24_rx_mode(&robot_nrf24));
+
+//	add_to_mistakes_log(nrf24_set_tx_address(&robot_nrf24, new_addr_for_nrf_tx));
+//	add_to_mistakes_log(nrf24_tx_mode(&robot_nrf24));
+
 
 //	add_to_mistakes_log(nrf24_enable_interrupts(&robot_nrf24, yes, no, yes));
 
@@ -169,8 +176,8 @@ int main(void)
 		current_register_state = robot_nrf24.spi_write_byte(NRF24_NOP);
 		robot_nrf24.csn_high();
 
-		current_int_stat1 = nrf24_get_interrupts_status(&robot_nrf24);
-		current_int_stat2 = nrf24_get_interrupts_status(&robot_nrf24);
+//		current_int_stat1 = nrf24_get_interrupts_status(&robot_nrf24);
+//		current_int_stat2 = nrf24_get_interrupts_status(&robot_nrf24);
 
 		if(nrf24_check_if_alive(&robot_nrf24)){
 			GPIOD->ODR |= 0x06;
@@ -178,8 +185,18 @@ int main(void)
 
 //		add_to_mistakes_log(nrf24_check_if_alive(&robot_nrf24));
 
+//		add_to_mistakes_log(nrf24_send_message(&robot_nrf24, nrf_data, 12, yes));
+
+		pipe_number = nrf24_is_new_data_availiable(&robot_nrf24);
+
+		if(pipe_number)
+		{
+			nrf24_read_message(&robot_nrf24, nrf_input_data, 12);
+			data_reads++;
+		}
+
+
 		icm_20600_get_sensors_data(&robot_imu, icm_data, no);
-		add_to_mistakes_log(nrf24_send_message(&robot_nrf24, nrf_data, 8, yes));
 
 		delay_in_milliseconds(1000);
 		GPIOD->ODR ^= 0x01;
