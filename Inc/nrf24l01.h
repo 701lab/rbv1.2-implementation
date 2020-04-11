@@ -101,7 +101,7 @@ typedef struct
 	nrf24_pa_contol power_output;
 	nrf24_data_rate data_rate;
 
-	// Flag that is used to understand if device was already initialized. Needed for error checking optimiztion.
+	// Flag that shows that device was already initialized. Needed for error checking optimiztion.
 	uint32_t device_was_initialized;
 } nrf24l01p;
 
@@ -112,7 +112,7 @@ typedef struct
 uint32_t nrf24_basic_init(nrf24l01p * nrf24_instance);
 
 /*
-	@brief Read RF_CH register (which is never equals 0). If response data equals 0 - device is not connected, returns mistake code
+	@brief Read RF_CH register (which is never equals 0). If response data equals 0 - device is not connected, returns mistake code.
  */
 uint32_t nrf24_check_if_alive(nrf24l01p * nrf24_instance);
 
@@ -122,29 +122,42 @@ uint32_t nrf24_check_if_alive(nrf24l01p * nrf24_instance);
 uint32_t nrf24_check_declarations(nrf24l01p * nrf24_instance);
 
 /*
-	@brief Add PWR_UP bit to NRF24l01+ CONFIG register
+	@brief Add PWR_UP bit to NRF24l01+ CONFIG register.
  */
 uint32_t nrf24_power_up(nrf24l01p * nrf24_instance);
 
 /*
 	@brief
  */
-uint32_t nrf24_send_message(nrf24l01p * nrf24_instance, const void *payload, uint32_t payload_size, int32_t send_ac);
+uint32_t nrf24_send_message(nrf24l01p * nrf24_instance, void *payload, uint32_t payload_size, int32_t send_ac);
 
 /*
-	@brief
+	@brief change device mode to TX, but not pulls CE logic high for power efficiency - if powered up stays in standby-1.
  */
 uint32_t nrf24_tx_mode(nrf24l01p * nrf24_instance);
 
 /*
-	@brief
+	@brief Changes device settings to RX, if device is powered up goes to RX mode.
  */
 uint32_t nrf24_rx_mode(nrf24l01p * nrf24_instance);
 
 /*
-	@brief
+	@brief Sets new values for retransmit delay and count of retransmissions for particular nrf24l01+ device.
  */
 uint32_t nrf24_update_retransmission_params(nrf24l01p * nrf24_instance, nrf24_auto_retransmit_delay new_retransmit_delay, uint32_t new_retransmit_count);
+
+/*
+	@brief Sets new TX and RX pipe 0 addresses.
+ */
+uint32_t nrf24_set_tx_address(nrf24l01p * nrf24_instance, const uint8_t new_tx_address[5]);
+
+/*
+	@brief Enables interrupts with 1 in related input parameters, disables interrupts with 0. So to disable all interrupts call function with all 0 as inputs.
+ */
+uint32_t nrf24_enable_interrupts(nrf24l01p * nrf24_instance, uint32_t enable_rx_dr, uint32_t enable_tx_ds, uint32_t enable_max_rt);
+
+uint32_t nrf24_get_interrupts_status(nrf24l01p * nrf24_instance);
+
 
 // Not implemented yet
 
@@ -156,15 +169,8 @@ uint32_t nrf24_enable_pipe1(nrf24l01p * nrf24_instance, uint8_t pipe_address[]);
 
 uint32_t nrf24_enable_pipe2_4(nrf24l01p * nrf24_instance, uint32_t pipe_number, uint8_t pipe_address_last_byte);
 
-uint32_t nrf24_set_tx_address(nrf24l01p * nrf24_instance, uint8_t new_tx_address[]);
-
-uint32_t nrf24_enable_dynamic_payload(nrf24l01p * nrf24_instance, uint32_t pipe_nuber);
 
 
-// @brief Enables interrupts with 1 in related input parameters, disables interrupts with 0. So to disable all interrupts call function with all 0 as inputs.
-uint32_t nrf24_enable_interrupts(nrf24l01p * nrf24_instance, uint32_t enable_rx_dr, uint32_t enable_tx_ds, uint32_t enable_max_rt);
-
-uint32_t nrf24_get_interrupts_status(nrf24l01p * nrf24_instance);
 
 
 ///*
@@ -174,11 +180,6 @@ uint32_t nrf24_get_interrupts_status(nrf24l01p * nrf24_instance);
 //
 //// @brief Going to power down through standby-1 state even though it is possible to do from any other state directly. Recommended behavior.
 //uint32_t nrf24_safe_power_down(nrf24l01p * nrf24_instance);
-
-
-
-// @brief Enables interrupts with 1 in related input parameters, disables interrupts with 0. So to disable all interrupts call function with all 0 as inputs.
-void nrf24_enable_interrupts(uint32_t enable_rx_dr, uint32_t enable_tx_ds, uint32_t enable_max_rt);
 
 //*********************************************************************************************************//
 

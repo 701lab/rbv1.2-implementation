@@ -44,11 +44,17 @@
 
 /*
 	@brief Makes log entry with given mistake code at current time.
+		If mistake code is equal to 0 doens't log it
 
 	@param[in] mistake_code - mistakes code to be written to log.
  */
 void add_to_mistakes_log(uint32_t mistake_code)
 {
+	if(mistake_code == 0)
+	{
+		return;
+	}
+
 	mistakes_log[mistakes_log_pointer].mistake_code = mistake_code;
 	mistakes_log[mistakes_log_pointer].mistake_time_in_minuts = time_from_log_enable_in_minutes;
 	mistakes_log[mistakes_log_pointer].mistake_time_in_seconds = TIM14->CNT;
