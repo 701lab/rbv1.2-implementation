@@ -153,26 +153,25 @@ uint32_t nrf24_enable_pipe1(nrf24l01p * nrf24_instance, uint8_t pipe_address[]);
  */
 uint32_t nrf24_enable_pipe2_4(nrf24l01p * nrf24_instance, uint32_t pipe_number, uint8_t pipe_address_last_byte);
 
-//8888888888888888
 /*
 	@name nrf24_send_message
-	@brief
+	@brief Sends message with either acknowledgment or not.
  */
 uint32_t nrf24_send_message(nrf24l01p * nrf24_instance, void *payload, uint32_t payload_size, int32_t send_ac);
 
-
 /*
 	@name nrf24_is_new_data_availiable
-	@brief
+	@brief Checks if new data is available. If so return the number of the pipe which received message.
  */
 uint8_t nrf24_is_new_data_availiable(nrf24l01p * nrf24_instance);
 
 /*
 	@name nrf24_read_message
-	@brief
+	@brief Saves last received message into the input array.
  */
-uint32_t nrf24_read_message(nrf24l01p * nrf24_instance, void * payload_storage, uint32_t pyaload_size);
+uint32_t nrf24_read_message(nrf24l01p * nrf24_instance, void * payload_storage, uint32_t payload_size_in_bytes);
 
+//8888888888888888
 /*
 	@name nrf24_enable_interrupts
 	@brief Enables interrupts with 1 in related input parameters, disables interrupts with 0. So to disable all interrupts call function with all 0 as inputs.
@@ -181,13 +180,14 @@ uint32_t nrf24_enable_interrupts(nrf24l01p * nrf24_instance, uint32_t enable_rx_
 
 /*
 	@name nrf24_get_interrupts_status
-	@brief Reads NRF24_STATUS register, clears all interrupts and returns only interrupt flags states.
+	@brief Returns interrupt flags in raw state. Clears interrupts flags.
  */
 uint32_t nrf24_get_interrupts_status(nrf24l01p * nrf24_instance);
 
 /*
 	@name nrf24_update_retransmission_params
 	@brief Sets new values for retransmit delay and count of retransmissions for particular nrf24l01+ device.
+		If retransmit count = 0 no retransmissions are produced.
  */
 uint32_t nrf24_update_retransmission_params(nrf24l01p * nrf24_instance, nrf24_auto_retransmit_delay new_retransmit_delay, uint32_t new_retransmit_count);
 

@@ -291,7 +291,7 @@ uint32_t nrf24_rx_mode(nrf24l01p *nrf24_instance)
 	@note Addresses should be written in reverse order, so that they can be represented as they were stored in the array.
  */
 // ************************************************ //
-uint32_t nrf24_set_tx_address(nrf24l01p * nrf24_instance, const uint8_t new_tx_address[5])
+uint32_t nrf24_set_tx_address(nrf24l01p *nrf24_instance, const uint8_t new_tx_address[5])
 {
 	// Check if device was initialized
 	if ( nrf24_instance->device_was_initialized == 0 )
@@ -335,7 +335,7 @@ uint32_t nrf24_set_tx_address(nrf24l01p * nrf24_instance, const uint8_t new_tx_a
  */
 // ************************************************ //
 
-uint32_t nrf24_enable_pipe1(nrf24l01p * nrf24_instance, uint8_t pipe_address[])
+uint32_t nrf24_enable_pipe1(nrf24l01p *nrf24_instance, uint8_t pipe_address[])
 {
 	if ( nrf24_instance->device_was_initialized == 0 )
 	{
@@ -381,7 +381,7 @@ uint32_t nrf24_enable_pipe1(nrf24l01p * nrf24_instance, uint8_t pipe_address[])
 	@return first found mistake code or 0 if no mistakes were found
  */
 // ************************************************ //
-uint32_t nrf24_enable_pipe2_4(nrf24l01p * nrf24_instance, uint32_t pipe_number, uint8_t pipe_address_last_byte)
+uint32_t nrf24_enable_pipe2_4(nrf24l01p *nrf24_instance, uint32_t pipe_number, uint8_t pipe_address_last_byte)
 {
 	if ( nrf24_instance->device_was_initialized == 0 )
 	{
@@ -425,28 +425,28 @@ uint32_t nrf24_enable_pipe2_4(nrf24l01p * nrf24_instance, uint32_t pipe_number, 
 	return 0;
 }
 
-
-// ******************* Function ******************* // (V)
+// ******************* Function ******************* //
 /*
-	@brief Checks if all function pointers were initialized. If not returns mistake code.
-		Those mistakes should be handled as critical, so any function calling this one should immediately return mistake code.
+	@brief Sends message with either acknowledgment or not.
 
-	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called.
+	@param [in] payload - pointer to the payload (array, containing message to be sent).
+	@param [in] payload_size_in_bytes - payload size in bytes.
+	@param [in] should send ack - flag that determines if the message should be sent with or without acknowledgment.
 
 	@return first found mistake code or 0 if no mistakes were found
  */
 // ************************************************ //
-uint32_t nrf24_send_message(nrf24l01p * nrf24_instance,  void *payload, uint32_t payload_size_in_bytes, int32_t should_send_ack)
+uint32_t nrf24_send_message(nrf24l01p *nrf24_instance,  void *payload, uint32_t payload_size_in_bytes, int32_t should_send_ack)
 {
-	if(nrf24_instance->device_was_initialized == 0)
+	if ( nrf24_instance->device_was_initialized == 0 )
 	{
 		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
 	}
 
-
 	uint32_t mistake_code = 0;
 
-	if (payload_size_in_bytes > nrf24_instance->payload_size_in_bytes)
+	if ( payload_size_in_bytes > nrf24_instance->payload_size_in_bytes )
 	{
 		payload_size_in_bytes = nrf24_instance->payload_size_in_bytes;
 		mistake_code = NRF24_WRONG_MESSAGE_SIZE;
@@ -462,60 +462,126 @@ uint32_t nrf24_send_message(nrf24l01p * nrf24_instance,  void *payload, uint32_t
 	nrf24_instance->spi_write_byte(should_send_ack == 1 ? NRF24_W_TX_PAYLOAD : W_TX_PAYLOAD_NO_ACK);
 
 	// Send data
-	for  (uint32_t i = 0; i < payload_size_in_bytes; ++i)
+	for ( uint32_t i = 0; i < payload_size_in_bytes; ++i )
 	{
 		nrf24_instance->spi_write_byte(*current_byte_to_send);
 		current_byte_to_send++;
 	}
 
-	// !!! надо попрбовать вообще без этого момента и посмотреть что будет приходить
 	// Fill empty space with 0 if needed.
-	for (uint32_t i = 0; i < amount_of_zeros_requered; ++i)
+	for ( uint32_t i = 0; i < amount_of_zeros_requered; ++i )
 	{
 		nrf24_instance->spi_write_byte(0);
 	}
 	nrf24_instance->csn_high();
 
-
 	// Send device into the Tx mode to send one payload
 	nrf24_instance->ce_high();
-	for (int i = 0; i < 500; ++i){}
+	for ( int i = 0; i < 500; ++i ){}
 	nrf24_instance->ce_low();
 
 	return mistake_code;
 }
 
-
-// ******************* Function ******************* // (V)
+// ******************* Function ******************* //
 /*
-	@brief Reads NRF24_STATUS register, clears all interrupts and returns only interrupt flags states.
+	@brief Checks if new data is available. If so return the number of the pipe which received message.
 
 	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
 
-	@return NRF24_STATUS register interrupts bits
+	@return number of the pipe which received message or 0 if no message was received.
  */
 // ************************************************ //
-uint32_t nrf24_get_interrupts_status(nrf24l01p * nrf24_instance)
+uint8_t nrf24_is_new_data_availiable(nrf24l01p *nrf24_instance)
 {
+	// IF device is not initialized will return no data
+	if ( nrf24_instance->device_was_initialized == 0 )
+	{
+		return 0;
+	}
 
 	nrf24_instance->csn_low();
-	uint32_t interrupt_status = nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_STATUS) & 0xF0;
-	nrf24_instance->spi_write_byte(NRF24_INTERRUPTS_MASK);
+	uint8_t current_device_status = nrf24_instance->spi_write_byte(NRF24_R_REGISTER | NRF24_FIFO_STATUS);
+	uint8_t current_fifo_status = nrf24_instance->spi_write_byte(NRF24_NOP);
 	nrf24_instance->csn_high();
 
-	return interrupt_status;
+	if((current_fifo_status & 0x01) == 0)
+	{
+
+		return (current_device_status &0x0E) >> 1;
+	}
+
+	return 0;
 }
 
-// ******************* Function ******************* // (V)
+// ******************* Function ******************* //
+/*
+	@brief Saves last received message into the input array.
+
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
+	@param [in] payload_storage - pointer to the array into which the message should be saved.
+	@param [in] payload_size_in_bytes - payload size in bytes.
+
+	@return number of the pipe which received message or 0 if no message was received.
+ */
+// ************************************************ //
+uint32_t nrf24_read_message(nrf24l01p *nrf24_instance, void *payload_storage, uint32_t payload_size_in_bytes)
+{
+	if ( nrf24_instance->device_was_initialized == 0 )
+	{
+		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
+	}
+
+	uint8_t mistake_code = 0;
+
+	uint8_t *current_byte_to_be_read = payload_storage;
+
+	// Check for proper payload size
+	if(payload_size_in_bytes > nrf24_instance->payload_size_in_bytes)
+	{
+		payload_size_in_bytes = nrf24_instance->payload_size_in_bytes;
+		mistake_code = NRF24_WRONG_PAYLOAD_SIZE;
+	}
+	if(payload_size_in_bytes < 0)
+	{
+		return NRF24_WRONG_PAYLOAD_SIZE;
+	}
+
+	// Read data stored in RX FIFO
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_R_RX_PAYLOAD);
+	for (uint32_t i = 0; i < payload_size_in_bytes; ++i)
+	{
+		*current_byte_to_be_read = nrf24_instance->spi_write_byte(NRF24_NOP);
+		current_byte_to_be_read++;
+	}
+
+	uint32_t zeros_to_be_read = nrf24_instance->payload_size_in_bytes - payload_size_in_bytes;
+	for(uint32_t i = 0; i < zeros_to_be_read; ++i)
+	{
+		nrf24_instance->spi_write_byte(NRF24_NOP);
+	}
+	nrf24_instance->csn_high();
+
+	// Clear new RX data interrupt flag
+	nrf24_instance->csn_low();
+	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_STATUS);
+	nrf24_instance->spi_write_byte(NRF24_MASK_RX_DR);
+	nrf24_instance->csn_high();
+
+	return mistake_code;
+}
+
+// ******************* Function ******************* //
 /*
 	@brief Enables interrupts with 1 in related input parameters, disables interrupts with 0. So to disable all interrupts call function with all 0 as inputs.
 
 	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
 	@param [in] enable_rx_dr - flag to enable RX interrupt
 	@param [in] enable_tx_dr - flag to enable TX interrupt
-	@param [in] enable_max_rt - flag to enable rx FIFO overflow interrupt
+	@param [in] enable_max_rt - flag to enable RX FIFO overflow interrupt
 
-	@return first found mistake code or 0 if no mistakes were found
+	@return mistake code or 0 if no mistakes were found
  */
 // ************************************************ //
 uint32_t nrf24_enable_interrupts(nrf24l01p *nrf24_instance,	uint32_t enable_rx_dr, uint32_t enable_tx_ds, uint32_t enable_max_rt)
@@ -559,98 +625,32 @@ uint32_t nrf24_enable_interrupts(nrf24l01p *nrf24_instance,	uint32_t enable_rx_d
 	return 0;
 }
 
-
-
 // ******************* Function ******************* //
 /*
-	@brief Sets new TX address for pipe 1.
+	@brief Returns interrupt flags in raw state. Clears interrupts flags.
 
-	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
-	@param [in] pipe_address[] - new base address of pipes 1-5 and unic bit for pipe 1. user should make sure, that array has a length of 5 bytes.
+	@note Interrupts flags in registers are in bits number 4, 5 and 6 (MAX_RT, TX_DS, RX_DR respectively). So return value can be 0x00 or 0x10 to 0x70.
 
-	@return first found mistake code or 0 if no mistakes were found
+	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called.
 
-	@note Function puts CE into logic low and doesn't start it back. So if function was called after nrf24_rx_mode(), CE should be set logic high
-		either by calling ce_high() or nrf24_rx_mode() once again.
+	@return NRF24_STATUS register interrupts bits.
  */
 // ************************************************ //
-uint8_t nrf24_is_new_data_availiable(nrf24l01p * nrf24_instance)
+uint32_t nrf24_get_interrupts_status(nrf24l01p * nrf24_instance)
 {
-	// IF device is not initialized will return no data
-	if ( nrf24_instance->device_was_initialized == 0 )
-	{
-		return 0;
-	}
 
 	nrf24_instance->csn_low();
-	uint8_t current_device_status = nrf24_instance->spi_write_byte(NRF24_R_REGISTER | NRF24_FIFO_STATUS);
-	uint8_t current_fifo_status = nrf24_instance->spi_write_byte(NRF24_NOP);
+	uint32_t interrupt_status = nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_STATUS) & 0xF0;
+	nrf24_instance->spi_write_byte(NRF24_INTERRUPTS_MASK);
 	nrf24_instance->csn_high();
 
-	if((current_fifo_status & 0x01) == 0)
-	{
-
-		return (current_device_status &0x0E) >> 1;
-	}
-
-	return 0;
-}
-
-uint32_t nrf24_read_message(nrf24l01p * nrf24_instance, void * payload_storage, uint32_t payload_size)
-{
-	if ( nrf24_instance->device_was_initialized == 0 )
-	{
-		return NRF24_INSTANCE_WAS_NOT_INITIALIZED;
-	}
-
-	uint8_t mistake_code = 0;
-
-	uint8_t *current_byte_to_be_read = payload_storage;
-
-	// Check for proper payload size
-	if(payload_size > nrf24_instance->payload_size_in_bytes)
-	{
-		payload_size = nrf24_instance->payload_size_in_bytes;
-		mistake_code = NRF24_WRONG_PAYLOAD_SIZE;
-	}
-	if(payload_size < 0)
-	{
-		return NRF24_WRONG_PAYLOAD_SIZE;
-	}
-
-	// Read data stored in RX FIFO
-	nrf24_instance->csn_low();
-	nrf24_instance->spi_write_byte(NRF24_R_RX_PAYLOAD);
-	for (uint32_t i = 0; i < payload_size; ++i)
-	{
-		*current_byte_to_be_read = nrf24_instance->spi_write_byte(NRF24_NOP);
-		current_byte_to_be_read++;
-	}
-
-	uint32_t zeros_to_be_read = nrf24_instance->payload_size_in_bytes - payload_size;
-	for(uint32_t i = 0; i < zeros_to_be_read; ++i)
-	{
-		nrf24_instance->spi_write_byte(NRF24_NOP);
-	}
-	nrf24_instance->csn_high();
-
-	// Clear new RX data interrupt flag
-	nrf24_instance->csn_low();
-	nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_STATUS);
-	nrf24_instance->spi_write_byte(NRF24_MASK_RX_DR);
-	nrf24_instance->csn_high();
-
-	return mistake_code;
+	return interrupt_status;
 }
 
 // ******************* Function ******************* // (V)
 /*
 	@brief Sets new values for retransmit delay and count of retransmissions for particular nrf24l01+ device.
 		If retransmit count = 0 no retransmissions are produced.
-		This setup is very important if data is transmitted with ACK message.
-		To have ability to retransmit 32 bytes of data with ACC, retransmit delay should be at least 500us. 250us (default value) is enough for:
-		- 5 bytes payload at 1 Mbps data rate;
-		- 15 bytes palyload at 2 Mbps data rate.
 
 	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
 	@param [in] new_retransmit_delay - new value of retransmission delay, should be expressed as nrf24_auto_retransmit_delay enum member
