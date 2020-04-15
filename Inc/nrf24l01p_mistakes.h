@@ -6,8 +6,10 @@
 	@brief Contains defines with all mistakes codes that nrf24l01p library uses
  */
 
-// Can be changed by the user to get mistakes in any desired range
-#define NRF24L01P_MISTAAKES_OFFSET					(0U)
+// @brief Mistakes code offset. Can be redefined in the source code (Should be higher than #include "nrf24l01p.h") by the user to get mistakes in any desired range.
+#ifndef NRF24L01P_MISTAAKES_OFFSET
+	#define NRF24L01P_MISTAAKES_OFFSET				(0U)
+#endif
 
 #define NRF24_WRONG_CHANNEL_FREQUENCY				(1U) + NRF24L01P_MISTAAKES_OFFSET
 #define NRF24_WRONG_PAYLOAD_SIZE					(2U) + NRF24L01P_MISTAAKES_OFFSET

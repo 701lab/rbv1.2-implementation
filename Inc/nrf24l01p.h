@@ -1,19 +1,12 @@
-#ifndef NRF24L01_PLUS_H_
-#define NRF24L01_PLUS_H_
+#ifndef NRF24L01P_H_
+#define NRF24L01P_H_
 
+// File that your project should provide for the library to work properly.
 #include "implementation.h"
-#include "nrf24l01_registers.h"
+
+//Files related to the library.
+#include "nrf24l01p_registers.h"
 #include "nrf24l01p_mistakes.h"
-
-/*
-	General library overwiew
-
-
-	What is not implemented and won't be implemented
-	- received power detection (RPD) reading and handling;
-	- only addresses with a length of 5 bytes are allowed. Addresses with 3 and 4 bytes are not allowed;
-
- */
 
 //****** typedefs required for the library ******//
 
@@ -100,7 +93,7 @@ typedef struct
 
 } nrf24l01p;
 
-//****** Functions implemented in library ******//
+//****** Functions implemented in the library ******//
 /*
 	@name nrf24_basic_init
 	@brief Sets up nrf24l01+ with parameters specified in the structure of particular instance.
@@ -151,7 +144,7 @@ uint32_t nrf24_enable_pipe1(nrf24l01p * nrf24_instance, uint8_t pipe_address[]);
 	@brief Sets new RX address for pipe from 2 to 5 and enables corresponding pipe. Use base from pipe 4, so only one byte changes.
 		Powers device down, So after this function either nrf24_rx_mode or nrf24_tx_mode should be called.
  */
-uint32_t nrf24_enable_pipe2_4(nrf24l01p * nrf24_instance, uint32_t pipe_number, uint8_t pipe_address_last_byte);
+uint32_t nrf24_enable_pipe2_5(nrf24l01p * nrf24_instance, uint32_t pipe_number, uint8_t pipe_address_last_byte);
 
 /*
 	@name nrf24_send_message
@@ -171,7 +164,6 @@ uint8_t nrf24_is_new_data_availiable(nrf24l01p * nrf24_instance);
  */
 uint32_t nrf24_read_message(nrf24l01p * nrf24_instance, void * payload_storage, uint32_t payload_size_in_bytes);
 
-//8888888888888888
 /*
 	@name nrf24_enable_interrupts
 	@brief Enables interrupts with 1 in related input parameters, disables interrupts with 0. So to disable all interrupts call function with all 0 as inputs.
@@ -182,7 +174,7 @@ uint32_t nrf24_enable_interrupts(nrf24l01p * nrf24_instance, uint32_t enable_rx_
 	@name nrf24_get_interrupts_status
 	@brief Returns interrupt flags in raw state. Clears interrupts flags.
  */
-uint32_t nrf24_get_interrupts_status(nrf24l01p * nrf24_instance);
+uint8_t nrf24_get_interrupts_status(nrf24l01p * nrf24_instance);
 
 /*
 	@name nrf24_update_retransmission_params
@@ -191,5 +183,4 @@ uint32_t nrf24_get_interrupts_status(nrf24l01p * nrf24_instance);
  */
 uint32_t nrf24_update_retransmission_params(nrf24l01p * nrf24_instance, nrf24_auto_retransmit_delay new_retransmit_delay, uint32_t new_retransmit_count);
 
-
-#endif /* NRF24L01_PLUS_H_ */
+#endif /* NRF24L01P_H_ */

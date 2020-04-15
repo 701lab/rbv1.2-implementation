@@ -14,10 +14,16 @@
 #include "implementation.h"
 #include "device.h"
 
+
+
+//uint8_t addrForRx3[5] = {0xAA,0xBB,0xCC,0xEE,0x15};		// Green leds car
+uint8_t addrForRx3[5] = {0xAA,0xBB,0xCC,0xEE,0x25};	// blue leds car
+
 int16_t icm_data[6] = { 0, 0, 0, 0, 0, 0 };
 float nrf_data[3] = {1.0f, 2.0f, 3.0f};
 //float nrf_data[2] = {1.0f, 2.0f};
-float nrf_input_data[3] = {0.0f, 0.0f, 0.0f};
+//float nrf_input_data[3] = {0.0f, 0.0f, 0.0f};
+uint16_t nrf_input_data[5] = {0, 0, 0, 0, 0};
 
 uint32_t control_systems_counter = 0;
 float	system_time_increment = 1.0f/SYSTICK_FREQUENCY;
@@ -75,7 +81,7 @@ position_control motor2_position_controller =
 
 icm_20600_instance robot_imu;
 
-nrf24l01p robot_nrf24;
+nrf24l01p example_nrf24 = {.device_was_initialized = 0};
 
 uint8_t new_addr_for_nrf[5] = {0x77,0x87,0x97,0xA7,0xB7};
 uint8_t new_addr_for_nrf_tx[5] = {0x77,0x87,0x97,0xA7,0x12};
@@ -118,21 +124,22 @@ int main(void)
 	robot_imu.cs_low = gpiob12_low;
 	robot_imu.send_one_byte = spi2_write_single_byte;
 
-	robot_nrf24.ce_high = gpiob0_high;
-	robot_nrf24.ce_low = gpiob0_low;
-	robot_nrf24.csn_high = gpiob1_high;
-	robot_nrf24.csn_low = gpiob1_low;
-	robot_nrf24.spi_write_byte = spi1_write_single_byte;
-	robot_nrf24.frequency_channel = 45;
-	robot_nrf24.payload_size_in_bytes = 12;
-	robot_nrf24.power_output = nrf24_pa_high;
-	robot_nrf24.data_rate = nrf24_1_mbps;
+	example_nrf24.ce_high = gpiob0_high;
+	example_nrf24.ce_low = gpiob0_low;
+	example_nrf24.csn_high = gpiob1_high;
+	example_nrf24.csn_low = gpiob1_low;
+	example_nrf24.spi_write_byte = spi1_write_single_byte;
+	example_nrf24.frequency_channel = 45;
+	example_nrf24.payload_size_in_bytes = 10;
+	example_nrf24.power_output = nrf24_pa_high;
+	example_nrf24.data_rate = nrf24_1_mbps;
 
-//	nrf24_power_up(&robot_nrf24);
+//	nrf24_power_up(&example_nrf24);
 
 
 	full_device_setup(no);
 
+	GPIOD->ODR |= 0x0F;
 
 	// Enables both motors
 //	motor1.motor_enable();
@@ -146,22 +153,25 @@ int main(void)
 
 //	setTxAddress(addrForTx);
 
+	// it's ok
+//	GPIOD->ODR ^= 0x02;
 
-	add_to_mistakes_log(nrf24_basic_init(&robot_nrf24));
 
-	add_to_mistakes_log(nrf24_enable_pipe1(&robot_nrf24, new_addr_for_nrf));
-	add_to_mistakes_log(nrf24_enable_pipe2_4(&robot_nrf24, 3, other_pipe_address));
+	add_to_mistakes_log(nrf24_basic_init(&example_nrf24));
 
-	add_to_mistakes_log(nrf24_rx_mode(&robot_nrf24));
+	add_to_mistakes_log(nrf24_enable_pipe1(&example_nrf24, addrForRx3));
+//	add_to_mistakes_log(nrf24_enable_pipe2_5(&example_nrf24, 3, other_pipe_address));
+
+	add_to_mistakes_log(nrf24_rx_mode(&example_nrf24));
 
 //	add_to_mistakes_log(nrf24_set_tx_address(&robot_nrf24, new_addr_for_nrf_tx));
 //	add_to_mistakes_log(nrf24_tx_mode(&robot_nrf24));
 
 
-//	add_to_mistakes_log(nrf24_enable_interrupts(&robot_nrf24, yes, no, yes));
+//	add_to_mistakes_log(nrf24_enable_interrupts(&example_nrf24, yes, no, yes));
 
 
-//	robot_nrf24.ce_high();
+//	example_nrf24.ce_high();
 
 	icm_20600_basic_init(&robot_imu, 0);
 
@@ -171,34 +181,31 @@ int main(void)
 	while(1)
 	{
 
-		robot_nrf24.csn_low();
-		robot_nrf24.spi_write_byte(NRF24_R_REGISTER | NRF24_CONFIG);
-		current_register_state = robot_nrf24.spi_write_byte(NRF24_NOP);
-		robot_nrf24.csn_high();
+		example_nrf24.csn_low();
+		example_nrf24.spi_write_byte(NRF24_R_REGISTER | NRF24_CONFIG);
+		current_register_state = example_nrf24.spi_write_byte(NRF24_NOP);
+		example_nrf24.csn_high();
 
-//		current_int_stat1 = nrf24_get_interrupts_status(&robot_nrf24);
-//		current_int_stat2 = nrf24_get_interrupts_status(&robot_nrf24);
-
-		if(nrf24_check_if_alive(&robot_nrf24)){
+		if(nrf24_check_if_alive(&example_nrf24)){
 			GPIOD->ODR |= 0x06;
 		}
 
 //		add_to_mistakes_log(nrf24_check_if_alive(&robot_nrf24));
 
-//		add_to_mistakes_log(nrf24_send_message(&robot_nrf24, nrf_data, 12, yes));
+//		add_to_mistakes_log(nrf24_send_message(&example_nrf24, nrf_data, 12, yes));
 
-		pipe_number = nrf24_is_new_data_availiable(&robot_nrf24);
+		pipe_number = nrf24_is_new_data_availiable(&example_nrf24);
 
 		if(pipe_number)
 		{
-			nrf24_read_message(&robot_nrf24, nrf_input_data, 12);
+			nrf24_read_message(&example_nrf24, nrf_input_data, 10);
 			data_reads++;
 		}
 
 
 		icm_20600_get_sensors_data(&robot_imu, icm_data, no);
 
-		delay_in_milliseconds(1000);
+		delay_in_milliseconds(100);
 		GPIOD->ODR ^= 0x01;
 	}
 }

@@ -1,4 +1,4 @@
-#include "nrf24l01.h"
+#include <nrf24l01p.h>
 
 // ******************* Function ******************* //
 /*
@@ -381,7 +381,7 @@ uint32_t nrf24_enable_pipe1(nrf24l01p *nrf24_instance, uint8_t pipe_address[])
 	@return first found mistake code or 0 if no mistakes were found
  */
 // ************************************************ //
-uint32_t nrf24_enable_pipe2_4(nrf24l01p *nrf24_instance, uint32_t pipe_number, uint8_t pipe_address_last_byte)
+uint32_t nrf24_enable_pipe2_5(nrf24l01p *nrf24_instance, uint32_t pipe_number, uint8_t pipe_address_last_byte)
 {
 	if ( nrf24_instance->device_was_initialized == 0 )
 	{
@@ -579,7 +579,7 @@ uint32_t nrf24_read_message(nrf24l01p *nrf24_instance, void *payload_storage, ui
 	@param [in] nrf24_instance - pointer to the nrf24l01p instance for which function is called
 	@param [in] enable_rx_dr - flag to enable RX interrupt
 	@param [in] enable_tx_dr - flag to enable TX interrupt
-	@param [in] enable_max_rt - flag to enable RX FIFO overflow interrupt
+	@param [in] enable_max_rt - flag to enable "maximum number of retransmissions exceeded" interrupt
 
 	@return mistake code or 0 if no mistakes were found
  */
@@ -636,11 +636,11 @@ uint32_t nrf24_enable_interrupts(nrf24l01p *nrf24_instance,	uint32_t enable_rx_d
 	@return NRF24_STATUS register interrupts bits.
  */
 // ************************************************ //
-uint32_t nrf24_get_interrupts_status(nrf24l01p * nrf24_instance)
+uint8_t nrf24_get_interrupts_status(nrf24l01p * nrf24_instance)
 {
 
 	nrf24_instance->csn_low();
-	uint32_t interrupt_status = nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_STATUS) & 0xF0;
+	uint8_t interrupt_status = nrf24_instance->spi_write_byte(NRF24_W_REGISTER | NRF24_STATUS) & 0xF0;
 	nrf24_instance->spi_write_byte(NRF24_INTERRUPTS_MASK);
 	nrf24_instance->csn_high();
 
