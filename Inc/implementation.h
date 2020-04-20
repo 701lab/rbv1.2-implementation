@@ -16,7 +16,7 @@
 	@note 	Only frequencies multiple to 2Mhz are allowed and PLLN is has a minimum value of 8.
 	 	 	Allowed frequencies are: 16000000, 18000000 ... 62000000, 64000000 Hz.
  */
-#define SYSCLK_FREQUENCY 			48000000 // Hz = 24 Mhz
+#define SYSCLK_FREQUENCY 				48000000 // Hz = 24 Mhz
 
 /*
 	@brief 	PWM frequency for motor control in Hz and related PWM precision
@@ -27,26 +27,30 @@
 	PWM_precision = ------------------
  	 	 	 	 	  PWM_FREQUENCY
  */
-#define PWM_FREQUENCY 				20000	// Hz = 20 Khz
-#define PWM_PRECISION				(SYSCLK_FREQUENCY / PWM_FREQUENCY - 1)	// -1 is needed for proper timers setup. Equation shouldn't be changed
+#define PWM_FREQUENCY 					20000	// Hz = 20 Khz
+#define PWM_PRECISION					(SYSCLK_FREQUENCY / PWM_FREQUENCY - 1)	// -1 is needed for proper timers setup. Equation shouldn't be changed
 
 /*
 	@brief	Amount of times system clock interrupt occurs in one second
 
 	Determines control system outer loop frequency
  */
-#define SYSTICK_FREQUENCY			40		// Hz
+#define SYSTICK_FREQUENCY				40		// Hz
 
 /*
 	@brief Mistakes log is used to collect mistakes codes during runtime
 
 	Log can be sent by any available interface during runtime to debug the system.
 
-v	TODO: @idea	It will be good to have EEPROM on every device so we can store mistakes log there
+	TODO: @idea	It will be good to have EEPROM on every device so we can store mistakes log there
 
 	TODO: It will be good to implement some type of black box: way to permanently store log with system parameters for the last couple of hours at least: EEPROM won't suffice
  */
-#define MISTAKES_LOG_SIZE			50
+#define MISTAKES_LOG_SIZE				50
+
+// *** Libraries based defines *** //
+#define NRF24L01P_MISTAAKES_OFFSET 		100
+#define ICM_20600_MISTAKES_OFFSET		200
 
 //****** End of User-adjustable defines ******//
 

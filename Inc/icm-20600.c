@@ -1,19 +1,33 @@
 #include "icm-20600.h"
 
-
-
-uint32_t icm_20600_basic_init(const icm_20600_instance *icm_instance,
-		uint32_t enable_temperature_sensor)
+// ******************* Function ******************* //
+/*
+	@brief
+ */
+// ************************************************ //
+uint32_t icm_20600_basic_init(const icm_20600_instance *icm_instance, uint32_t enable_temperature_sensor)
 {
 // SPI based implementation
 #ifdef ICM_THROUGH_SPI
 
 	icm_instance->cs_low();
 
+	// Check if connection is established
+	icm_instance->send_one_byte(ICM_WHO_AM_I | ICM_READ_REGISTERS);
+	if ( icm_instance->send_one_byte(0xff) == 0 )
+	{
+		icm_instance->cs_high();
+		return ICM_20600_DEVICE_IS_NOT_CONNECTED;
+	}
+
+	// Reset SPI connection
+	icm_instance->cs_high();
+	icm_instance->cs_low();
+
 	icm_instance->send_one_byte(ICM_PWR_MGMT_1 | ICM_WRITE_REGISTERS);
 	if ( enable_temperature_sensor )
 	{
-		// Wakes up. Doen't disable temperature sensor
+		// Wakes up. Don't disable temperature sensor
 		icm_instance->send_one_byte(ICM_PWR_MGMT_1_CLKSEL_AUTO);
 	}
 	else
@@ -30,19 +44,9 @@ uint32_t icm_20600_basic_init(const icm_20600_instance *icm_instance,
 	icm_instance->send_one_byte(ICM_I2C_IF | ICM_WRITE_REGISTERS);
 	icm_instance->send_one_byte(ICM_I2C_IF_DISABLE);
 
-	// Reset SPI connection
 	icm_instance->cs_high();
-	icm_instance->cs_low();
 
-	// Check if connection is established
-	icm_instance->send_one_byte(ICM_WHO_AM_I | ICM_READ_REGISTERS);
-	if ( icm_instance->send_one_byte(0xff) == 0 )
-	{
-		icm_instance->cs_high();
-		return 1;
-	}
-
-	icm_instance->cs_high();
+	icm_instance->device_was_initialized = 1;
 	return 0;
 
 #endif /* ICM_THROUGH_SPI */
@@ -55,10 +59,22 @@ uint32_t icm_20600_basic_init(const icm_20600_instance *icm_instance,
 #endif /* ICM_THROUGH_I2C */
 }
 
-uint32_t icm_20600_get_sensors_data(const icm_20600_instance *icm_instance,
-			int16_t *icm_data_storage_array,
-			uint32_t add_temperature_sensor_data)
+// ******************* Function ******************* //
+/*
+	@brief
+ */
+// ************************************************ //
+
+uint32_t icm_20600_get_sensors_data(const icm_20600_instance *icm_instance, int16_t *data_storage_array, uint32_t add_temperature_data)
 {
+	// Code that doesn't depend on library type
+
+	// Check if device was initialized
+	if (icm_instance->device_was_initialized == 0)
+	{
+		return ICM_20600_INSTANCE_WAS_NOT_INITIALIZED;
+	}
+
 // SPI based implementation
 #ifdef ICM_THROUGH_SPI
 
@@ -68,14 +84,14 @@ uint32_t icm_20600_get_sensors_data(const icm_20600_instance *icm_instance,
 	icm_instance->send_one_byte(ICM_ACCEL_XOUT_H | ICM_READ_REGISTERS);
 
 	// Get accelerometer data
-	icm_data_storage_array[icm_accelerometer_x] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
-	icm_data_storage_array[icm_accelerometer_y] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
-	icm_data_storage_array[icm_accelerometer_z] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
+	data_storage_array[icm_accelerometer_x] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
+	data_storage_array[icm_accelerometer_y] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
+	data_storage_array[icm_accelerometer_z] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
 
-	if (add_temperature_sensor_data)
+	if (add_temperature_data)
 	{
 		// Add temperature sensor data to array
-		icm_data_storage_array[icm_temperature] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
+		data_storage_array[icm_temperature] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
 	}
 	else
 	{
@@ -85,9 +101,9 @@ uint32_t icm_20600_get_sensors_data(const icm_20600_instance *icm_instance,
 	}
 
 	// Get gyroscope data
-	icm_data_storage_array[icm_gyroscope_x] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
-	icm_data_storage_array[icm_gyroscope_y] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
-	icm_data_storage_array[icm_gyroscope_z] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
+	data_storage_array[icm_gyroscope_x] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
+	data_storage_array[icm_gyroscope_y] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
+	data_storage_array[icm_gyroscope_z] = icm_instance->send_one_byte(0xFF)<<8 | icm_instance->send_one_byte(0xFF);
 
 	icm_instance->cs_high();
 
@@ -103,7 +119,11 @@ uint32_t icm_20600_get_sensors_data(const icm_20600_instance *icm_instance,
 #endif /* ICM_THROUGH_I2C */
 }
 
-
+// ******************* Function ******************* //
+/*
+	@brief
+ */
+// ************************************************ //
 uint32_t icm_20600_check_if_alive(const icm_20600_instance *icm_instance)
 {
 //SPI implementation
@@ -116,7 +136,7 @@ uint32_t icm_20600_check_if_alive(const icm_20600_instance *icm_instance)
 	if ( icm_instance->send_one_byte(0xff) == 0 )
 	{
 		icm_instance->cs_high();
-		return 1;
+		return ICM_20600_INSTANCE_WAS_NOT_INITIALIZED;
 	}
 
 	icm_instance->cs_high();
@@ -131,10 +151,21 @@ uint32_t icm_20600_check_if_alive(const icm_20600_instance *icm_instance)
 #endif /* ICM_THROUGH_I2C */
 }
 
-void icm_20600_setup(const icm_20600_instance *icm_instance,
-			const uint8_t gyro_desired_dps_scale,
-			const uint8_t accel_desired_g_scale)
+// ******************* Function ******************* //
+/*
+	@brief
+ */
+// ************************************************ //
+uint32_t icm_20600_setup(const icm_20600_instance *icm_instance, const uint8_t gyro_desired_dps_scale, const uint8_t accel_desired_g_scale)
 {
+	// Code that doesn't depend on library type
+
+	// Check if device was initialized
+	if (icm_instance->device_was_initialized == 0)
+	{
+		return ICM_20600_INSTANCE_WAS_NOT_INITIALIZED;
+	}
+
 	uint8_t gyro_scale_value = gyro_desired_dps_scale;
 	uint8_t accel_scale_value = accel_desired_g_scale;
 
@@ -157,7 +188,7 @@ void icm_20600_setup(const icm_20600_instance *icm_instance,
 
 	icm_instance->cs_high();
 
-	return;
+	return 0;
 
 #endif /* ICM_THROUGH_SPI */
 

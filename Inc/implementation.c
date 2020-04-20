@@ -680,7 +680,7 @@ void intrfaces_setup(void)
 
 	basic_spi2_setup(5000000);
 
-	basic_uart1_setup(9600);
+	basic_uart1_setup(19200);
 
 }
 
