@@ -12,7 +12,7 @@
 #define VAR_DECLS
 
 #include "implementation.h"
-#include "icm-20600.h"
+#include "icm-20600_impi.h"
 #include "nrf24l01p_impi.h"
 #include "motors.h"
 
