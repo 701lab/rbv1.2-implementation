@@ -5,7 +5,7 @@
 	@brief
  */
 // ************************************************ //
-uint32_t icm_20600_basic_init(const icm_20600_instance *icm_instance, uint32_t enable_temperature_sensor)
+uint32_t icm_20600_basic_init(icm_20600_instance *icm_instance, uint32_t enable_temperature_sensor)
 {
 // SPI based implementation
 #ifdef ICM_THROUGH_SPI

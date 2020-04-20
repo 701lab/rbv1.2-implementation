@@ -49,7 +49,7 @@
 #define MISTAKES_LOG_SIZE				50
 
 // *** Libraries based defines *** //
-#define NRF24L01P_MISTAAKES_OFFSET 		100
+#define NRF24L01P_MISTAKES_OFFSET 		100
 #define ICM_20600_MISTAKES_OFFSET		200
 
 //****** End of User-adjustable defines ******//

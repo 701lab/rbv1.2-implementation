@@ -12,9 +12,9 @@
 #define VAR_DECLS
 
 #include "implementation.h"
-#include "device.h"
-
-
+#include "icm-20600.h"
+#include "nrf24l01p_impi.h"
+#include "motors.h"
 
 //uint8_t addrForRx3[5] = {0xAA,0xBB,0xCC,0xEE,0x15};		// Green leds car
 uint8_t addrForRx3[5] = {0xAA,0xBB,0xCC,0xEE,0x25};	// blue leds car

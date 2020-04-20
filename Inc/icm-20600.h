@@ -28,7 +28,7 @@ typedef struct{
 
 //****** ICM functions ******//
 
-uint32_t icm_20600_basic_init(const icm_20600_instance *icm_instance, uint32_t enable_temperature_sensor);
+uint32_t icm_20600_basic_init(icm_20600_instance *icm_instance, uint32_t enable_temperature_sensor);
 
 uint32_t icm_20600_get_sensors_data(const icm_20600_instance *icm_instance, int16_t *data_storage_array, uint32_t add_temperature_data);
 
