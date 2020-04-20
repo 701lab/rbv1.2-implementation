@@ -75,6 +75,7 @@ position_control motor2_position_controller =
 // *********************************** //
 // ****** ICM-20600 declaration ****** //
 // *********************************** //
+// Пока оставлю, не уверен, чт одля данного проекта мне это нужно, но все же
 icm_20600_instance robot_imu = {.device_was_initialized = 0};
 int16_t icm_data[6] = { 0, 0, 0, 0, 0, 0 };
 
@@ -142,7 +143,7 @@ int main(void)
 	add_to_mistakes_log(nrf24_basic_init(&robot_nrf24));
 	add_to_mistakes_log(nrf24_enable_pipe1(&robot_nrf24, nrf24_rx_address));
 	add_to_mistakes_log(nrf24_rx_mode(&robot_nrf24));
-//	add_to_mistakes_log(nrf24_enable_interrupts(&example_nrf24, yes, no, yes));
+	add_to_mistakes_log(nrf24_enable_interrupts(&robot_nrf24, yes, no, no));
 
 	icm_20600_basic_init(&robot_imu, 0);
 
@@ -183,3 +184,12 @@ void SysTick_Handler()
 		control_systems_counter = 0;
 	}
 }
+
+// Let try this out
+void EXTI2_3_IRQHandler()
+{
+	EXTI->FPR1 |= 0x04;
+
+	GPIOD->ODR ^= 0x06;
+}
+

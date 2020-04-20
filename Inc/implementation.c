@@ -372,6 +372,11 @@ void gpio_setup(void)
 			| (ALTERNATE_FUNCTION_1 << GPIO_AFRH_AFSEL12_Pos)
 			| (ALTERNATE_FUNCTION_1 << GPIO_AFRH_AFSEL13_Pos);	// Equals to GPIOB->AFR[0] |= 0x00112000;
 
+	// Temporary interrupt initialization
+	EXTI->FTSR1 |= 0x04; // enable pb2 interrupt
+	NVIC_EnableIRQ(EXTI2_3_IRQn);
+
+
 	//*** Port C full GPIO setup ***//
 	GPIOC->MODER &= ~((GPIO_MODER_MSK << GPIO_MODER_MODE6_Pos)
 			| (GPIO_MODER_MSK << GPIO_MODER_MODE7_Pos));		// Equal to GPIOC->MODER &=~0xF000;
