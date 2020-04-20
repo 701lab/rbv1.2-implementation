@@ -372,11 +372,6 @@ void gpio_setup(void)
 			| (ALTERNATE_FUNCTION_1 << GPIO_AFRH_AFSEL12_Pos)
 			| (ALTERNATE_FUNCTION_1 << GPIO_AFRH_AFSEL13_Pos);	// Equals to GPIOB->AFR[0] |= 0x00112000;
 
-	// Temporary interrupt initialization
-	EXTI->FTSR1 |= 0x04; // enable pb2 interrupt
-	NVIC_EnableIRQ(EXTI2_3_IRQn);
-
-
 	//*** Port C full GPIO setup ***//
 	GPIOC->MODER &= ~((GPIO_MODER_MSK << GPIO_MODER_MODE6_Pos)
 			| (GPIO_MODER_MSK << GPIO_MODER_MODE7_Pos));		// Equal to GPIOC->MODER &=~0xF000;
@@ -395,6 +390,27 @@ void gpio_setup(void)
 			| (GPIO_DIGITAL_OUT << GPIO_MODER_MODE2_Pos)
 			| (GPIO_DIGITAL_OUT << GPIO_MODER_MODE3_Pos);		// Equal to GPIOD->MODER |= 0x00000055;
 }
+
+
+
+/*
+	@brief Set up all external interrupts. ICM-20600, and NRF24L01 interrupt
+ */
+void interrupts_setup()
+{
+	// Скорее всего нрадо будет передаелать, чтобы включались только те прерывания, которые действительно нужны в данный
+	NVIC_EnableIRQ(EXTI2_3_IRQn);
+//	NVIC_EnableIRQ(EXTI4_15_IRQn);
+
+	// Enable PB2, 10 and 11 interrupts
+	EXTI->IMR1 |= EXTI_IMR1_IM2 /*| EXTI_IMR1_IM10 | EXTI_IMR1_IM11*/;
+	EXTI->FTSR1 |= EXTI_FTSR1_FT2 /*| EXTI_FTSR1_FT10 | EXTI_FTSR1_FT11*/;	// Not yet sure what type of interrupt is on the icm-20600, but will set up what drop
+	EXTI->EXTICR[0] |= 1 << EXTI_EXTICR1_EXTI2_Pos; // Enable PB2
+//	EXTI->EXTICR[2] |= (1 << EXTI_EXTICR3_EXTI10_Pos) | (1 << EXTI_EXTICR3_EXTI11_Pos); // Enable PB10 and 11
+}
+
+
+
 
 /*!
 	@brief	Sets up all used on the board timers and enables desired interrupts
@@ -691,7 +707,7 @@ void intrfaces_setup(void)
 
 
 
-void full_device_setup(uint32_t should_inclued_interfaces)
+void full_device_setup(uint32_t should_inclued_interfaces, uint32_t should_setup_interrupts)
 {
 
 	system_clock_setup();
@@ -699,6 +715,11 @@ void full_device_setup(uint32_t should_inclued_interfaces)
 	gpio_setup();
 
 	timers_setup();
+
+	if (should_setup_interrupts == yes)
+	{
+		interrupts_setup();
+	}
 
 	if(should_inclued_interfaces == yes)
 	{

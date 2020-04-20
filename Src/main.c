@@ -137,7 +137,7 @@ int main(void)
 //	nrf24_power_up(&example_nrf24);
 
 
-	full_device_setup(no);
+	full_device_setup(no, no);
 
 	GPIOD->ODR |= 0x0F;
 

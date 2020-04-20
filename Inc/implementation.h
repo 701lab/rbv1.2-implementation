@@ -69,7 +69,7 @@ void add_to_mistakes_log(uint32_t mistake_code);
 /*
 	@brief Sets up all desired device peripherals
  */
-void full_device_setup(uint32_t should_inclued_interfaces);
+void full_device_setup(uint32_t should_inclued_interfaces, uint32_t should_setup_interrupts);
 
 /*
 	@brief	Enables UART 1 with a given baud rate with TX and RX enable and default setting in everything else
@@ -133,6 +133,11 @@ void timers_setup(void);
 	@brief Sets all interfaces with default transmission rates
  */
 void intrfaces_setup(void);
+
+/*
+	@brief Set up all external interrupts. ICM-20600, and NRF24L01 interrupt
+ */
+void interrupts_setup(void);
 
 /*
 	@brief TIM14 overflow interrupt handler - counts minutes from enable of mistakes log.
