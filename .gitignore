@@ -63,6 +63,7 @@ dkms.conf
 !/cargo\ src/ 
 # "balancing src" folder
 !/balancing\ src/
+!/nrf24l01p_impi/
 
 #!/Inc/ # I should have all files in SRC, or even without a folder, so it will be easier to link them to project when I will submodule it 
 /Src/syscalls.c
