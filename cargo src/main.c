@@ -1,8 +1,5 @@
-/*
-	@file main.c
+// $branch$
 
-	@brief This is a main file of the balancing robot prototype project. All desired source code for sensing, handling, and controlling is accumulated in here.
- */
 
 // For global variables declaration
 #define VAR_DECLS
@@ -80,7 +77,8 @@ int16_t icm_data[6] = { 0, 0, 0, 0, 0, 0 };
 // *********************************** //
 nrf24l01p robot_nrf24 = {.device_was_initialized = 0};
 
-uint8_t nrf24_rx_address[5] = {0xAA,0xBB,0xCC,0xEE,0x25};	// blue LEDs car
+uint8_t nrf24_rx_address[5] = {0xAA,0xBB,0xCC,0xEE,0x15};	// green LEDs car
+//uint8_t nrf24_rx_address[5] = {0xAA,0xBB,0xCC,0xEE,0x25};	// blue LEDs car
 uint16_t nrf_input_data[5] = {0, 0, 0, 0, 0};
 
 uint32_t nrf24_data_has_been_captured = 0;
@@ -144,6 +142,26 @@ int main(void)
 
 	while(1)
 	{
+//		// *** Testing of position control for differential drive robot *** //
+//
+//		// For my position control system to properly work i need to use increments and not absolute values.
+//		motor1.position_controller->target_position += 5.0f;
+//		motor2.position_controller->target_position += 5.0f;
+//		delay_in_milliseconds(1000);
+//
+//
+//		motor1.position_controller->target_position += 3.0f;
+//		motor2.position_controller->target_position -= 3.0f;
+//		delay_in_milliseconds(1000);
+//
+//		motor1.position_controller->target_position -= 5.0f;
+//		motor2.position_controller->target_position -= 5.0f;
+//		delay_in_milliseconds(1000);
+//
+//		motor1.position_controller->target_position -= 3.0f;
+//		motor2.position_controller->target_position += 3.0f;
+//		delay_in_milliseconds(1000);
+//		// ****************************** //
 
 //		delay_in_milliseconds(500);
 //		GPIOD->ODR ^= 0x01;
@@ -152,9 +170,7 @@ int main(void)
 
 
 // ****** Control loop handler ****** //
-// Control loop handles by the Systick timer
-
-uint32_t control_systems_counter = 0;
+// Control loop handles by the SysTick timer
 
 // *** Speed controller setup variables ***//
 uint32_t speed_loop_call_counter = 0;
@@ -168,17 +184,13 @@ uint32_t position_loop_call_counter = 0;
 
 #define POSITION_LOOP_FREQUENCY				10	// Times per second. Must be not bigger than SYSTICK_FREQUENCY. It is better if it is at least 2 times slower than the speed loop.
 #define POSITION_LOOP_COUNTER_MAX_VALUE 	SYSTICK_FREQUENCY / POSITION_LOOP_FREQUENCY	// Times
-#define POSITION_LOOP_PERIOD				(float)(POSITION_LOOP_FREQUENCY) / (float)(SYSTICK_FREQUENCY) // Seconds
-
-
+//#define POSITION_LOOP_PERIOD				(float)(POSITION_LOOP_FREQUENCY) / (float)(SYSTICK_FREQUENCY) // Seconds
 
 void SysTick_Handler()
 {
-//	control_systems_counter += 1;
-	speed_loop_call_counter += 1;
-//	position_loop_call_counter += 1;
 
 	// *** Speed control handling *** //
+	speed_loop_call_counter += 1;
 	if ( speed_loop_call_counter == SPEED_LOOP_COUNTER_MAX_VALUE )	// 20 times per second
 	{
 		speed_loop_call_counter = 0;
@@ -190,20 +202,17 @@ void SysTick_Handler()
 		motor2.set_pwm_duty_cycle((int32_t)m2_speed_task);
 	}
 
-	// *** Position control handling *** //
-//	if ( control_systems_counter % (SYSTICK_FREQUENCY / 10) == 0 )	// 10 times per second
+//	// *** Position control handling *** //
+//	position_loop_call_counter += 1;
+//	if ( position_loop_call_counter == POSITION_LOOP_COUNTER_MAX_VALUE )	// 10 times per second
 //	{
+//		position_loop_call_counter = 0;
 //		motors_get_position(&motor1);
 //		motors_get_position(&motor2);
 //		motor1.speed_controller->target_speed = motors_position_controller_handler(&motor1);
 //		motor2.speed_controller->target_speed = motors_position_controller_handler(&motor2);
 //	}
 
-//	if(control_systems_counter == SYSTICK_FREQUENCY)	// Every second
-//	{
-//		GPIOD->ODR ^= 0x08;
-//		control_systems_counter = 0;
-//	}
 
 	// *** Nrf24l01+ safety clock *** //
 	if(nrf24_data_has_been_captured == 1)
@@ -217,14 +226,16 @@ void SysTick_Handler()
 		if(nrf24_safety_counter == SYSTICK_FREQUENCY) // Exactly one second delay
 		{
 			// Stop and show that data is not capturing any more
-			GPIOD->ODR ^= 0x01;
+			GPIOD->ODR &= ~0x01;
 			motor1.speed_controller->target_speed = 0.0f;
 			motor2.speed_controller->target_speed = 0.0f;
 		}
 	}
 
 }
+// **************************************** //
 
+// ****** NRf24l01+ IRQ handler ****** //
 void EXTI2_3_IRQHandler()
 {
 	// Clear interrupt flag
@@ -299,4 +310,7 @@ void EXTI2_3_IRQHandler()
 	motor1.speed_controller->target_speed = right_motor_speed_task;
 	motor2.speed_controller->target_speed = left_motor_speed_task;
 }
+// **************************************** //
+
+// EOF
 
