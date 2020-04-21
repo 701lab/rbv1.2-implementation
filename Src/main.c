@@ -203,7 +203,7 @@ int main(void)
 		}
 
 
-		icm_20600_get_sensors_data(&robot_imu, icm_data, no);
+		icm_20600_get_raw_data(&robot_imu, icm_data, no);
 
 		delay_in_milliseconds(100);
 		GPIOD->ODR ^= 0x01;

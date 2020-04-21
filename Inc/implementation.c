@@ -1,8 +1,8 @@
 #include "implementation.h"
 
 
-/******** MCU connections overview ********
-
+// ******** MCU connections overview ******** //
+/*
 	LEDs:
 		PD0-PD3 (digital outputs).
 
@@ -40,7 +40,7 @@
 
 	TIM16 - timer for proper delay implementation
 
-*/
+ */
 
 /*
 	@brief Makes log entry with given mistake code at current time.
@@ -408,8 +408,6 @@ void interrupts_setup()
 	EXTI->EXTICR[0] |= 1 << EXTI_EXTICR1_EXTI2_Pos; // Enable PB2
 //	EXTI->EXTICR[2] |= (1 << EXTI_EXTICR3_EXTI10_Pos) | (1 << EXTI_EXTICR3_EXTI11_Pos); // Enable PB10 and 11
 }
-
-
 
 
 /*!
