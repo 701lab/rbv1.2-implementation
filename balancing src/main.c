@@ -72,14 +72,15 @@ position_control motor2_position_controller =
 icm_20600_instance robot_imu = {.device_was_initialized = 0};
 int16_t icm_raw_data[7] = { 0, 0, 0, 0, 0, 0, 0 };
 float icm_processed_data[7] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+int16_t gyro_calib_values[3] = {0, 0, 0};
 
 // *********************************** //
 // ****** NRF24L01+ declaration ****** //
 // *********************************** //
 nrf24l01p robot_nrf24 = {.device_was_initialized = 0};
 
-uint8_t nrf24_rx_address[5] = {0xAA,0xBB,0xCC,0xEE,0x15};	// green LEDs car
-//uint8_t nrf24_rx_address[5] = {0xAA,0xBB,0xCC,0xEE,0x25};	// blue LEDs car
+//uint8_t nrf24_rx_address[5] = {0xAA,0xBB,0xCC,0xEE,0x15};	// green LEDs car
+uint8_t nrf24_rx_address[5] = {0xAA,0xBB,0xCC,0xEE,0x25};	// blue LEDs car
 uint16_t nrf_input_data[5] = {0, 0, 0, 0, 0};
 
 uint32_t nrf24_data_has_been_captured = 0;
@@ -117,8 +118,13 @@ int main(void)
 	robot_imu.cs_high = gpiob12_high;
 	robot_imu.cs_low = gpiob12_low;
 	robot_imu.send_one_byte = spi2_write_single_byte;
-	robot_imu.gyro_full_scale_setup = icm_gyro_250dps;
+	robot_imu.gyro_full_scale_setup = icm_gyro_500dps;
 	robot_imu.accel_full_scale_setup = icm_accel_2g;
+	robot_imu.enable_temperature_sensor = 0;
+	// If the device is not calibrated should all be 0 for proper calibration. If gyro scale was changed, values should be recalibrated
+	robot_imu.gyro_calibration_coefficients[icm_x] = -23;
+	robot_imu.gyro_calibration_coefficients[icm_y] = 428;
+	robot_imu.gyro_calibration_coefficients[icm_z] = -81;
 
 	// ****** NRF24L01+ initialization ****** //
 	robot_nrf24.ce_high = gpiob0_high;
@@ -133,11 +139,12 @@ int main(void)
 
 	// Initialization of MCU peripherals
 	full_device_setup(yes, yes);
+	GPIOD->ODR |= 0x01;
 
 	// Enables both motors
 	motor1.motor_enable();
 
-	delay_in_milliseconds(100);
+	delay_in_milliseconds(200);
 
 	// NRF24L01+ device setup
 	add_to_mistakes_log(nrf24_basic_init(&robot_nrf24));
@@ -145,23 +152,20 @@ int main(void)
 	add_to_mistakes_log(nrf24_enable_interrupts(&robot_nrf24, yes, no, no));
 	add_to_mistakes_log(nrf24_rx_mode(&robot_nrf24));
 
-	add_to_mistakes_log(icm_20600_basic_init(&robot_imu, yes));
+	add_to_mistakes_log(icm_20600_basic_init(&robot_imu));
+
+	imu_gyro_calibration(&robot_imu, gyro_calib_values);
+
+//	device_self_diagnosticks(&robot_imu, &robot_nrf24, &motor1, &motor2);
+
 
 	while(1)
 	{
-		delay_in_milliseconds(250);
+		delay_in_milliseconds(50);
 
-		robot_imu.cs_low();
-		// Check if device is connected
-		robot_imu.send_one_byte(ICM_WHO_AM_I | ICM_READ_REGISTERS);
-		someVar = robot_imu.send_one_byte(0xff);
-		robot_imu.cs_high();
-
-		add_to_mistakes_log(icm_20600_check_if_alive(&robot_imu));
-
-//		add_to_mistakes_log(icm_20600_get_raw_data(&robot_imu, icm_raw_data, yes));
-		add_to_mistakes_log(icm_20600_get_proccesed_data(&robot_imu, icm_processed_data, yes));
-		GPIOD->ODR ^= 0x08;
+		add_to_mistakes_log(icm_20600_get_raw_data(&robot_imu, icm_raw_data));
+//		add_to_mistakes_log(icm_20600_get_proccesed_data(&robot_imu, icm_processed_data));
+//		GPIOD->ODR ^= 0x08;
 	}
 }
 
@@ -174,7 +178,7 @@ uint32_t speed_loop_call_counter = 0;
 
 #define SPEED_LOOP_FREQUENCY				20	// Times per second. Must be not bigger then SYSTICK_FREQUENCY.
 #define SPEED_LOOP_COUNTER_MAX_VALUE 		SYSTICK_FREQUENCY / SPEED_LOOP_FREQUENCY	// Times.
-#define SPEED_LOOP_PERIOD					(float)(SPEED_LOOP_FREQUENCY) / (float)(SYSTICK_FREQUENCY) // Seconds.
+#define SPEED_LOOP_PERIOD					1.0f / (float)(SPEED_LOOP_FREQUENCY) // Seconds.
 
 // *** Position controller setup variables *** //
 uint32_t position_loop_call_counter = 0;
@@ -304,8 +308,8 @@ void EXTI2_3_IRQHandler()
 	}
 
 	// Set new speed tasks
-	motor1.speed_controller->target_speed = right_motor_speed_task;
-	motor2.speed_controller->target_speed = left_motor_speed_task;
+	motor1.speed_controller->target_speed = left_motor_speed_task;
+	motor2.speed_controller->target_speed = right_motor_speed_task;
 }
 // **************************************** //
 

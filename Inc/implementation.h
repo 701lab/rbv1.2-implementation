@@ -64,7 +64,7 @@
 /*
 	@brief Makes log entry with given mistake code at current time
  */
-void add_to_mistakes_log(uint32_t mistake_code);
+uint32_t add_to_mistakes_log(uint32_t mistake_code);
 
 /*
 	@brief Sets up all desired device peripherals

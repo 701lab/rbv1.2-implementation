@@ -173,7 +173,7 @@ int main(void)
 
 //	example_nrf24.ce_high();
 
-	icm_20600_basic_init(&robot_imu, 0);
+	icm_20600_basic_init(&robot_imu);
 
 //	motor1.speed_controller->target_speed = 1.0f;
 //	motor2.speed_controller->target_speed = 1.0f;
@@ -203,7 +203,7 @@ int main(void)
 		}
 
 
-		icm_20600_get_raw_data(&robot_imu, icm_data, no);
+		icm_20600_get_raw_data(&robot_imu, icm_data);
 
 		delay_in_milliseconds(100);
 		GPIOD->ODR ^= 0x01;

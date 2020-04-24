@@ -83,8 +83,8 @@ uint32_t motors_rotation_deiraction_test (motor *motor_instance)
 
 	int16_t current_encoder_counter_value = motor_instance->get_encoder_counter_value();
 
-	// Start motor with 1/3 of power
-	motor_instance->set_pwm_duty_cycle(motor_instance->max_duty_cycle_coefficient/3);
+	// Start motor with 1/2 of power
+	motor_instance->set_pwm_duty_cycle(motor_instance->max_duty_cycle_coefficient/2);
 	motor_instance->motor_enable();
 
 	// Give motor a moment to run

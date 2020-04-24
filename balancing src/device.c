@@ -3,6 +3,9 @@
 
 void device_self_diagnosticks(icm_20600_instance * icm_instance, nrf24l01p *nrf24_instance, motor * first_motor_instance, motor * second_motor_instance)
 {
+
+	GPIOD->ODR |= 0x08;
+
 	// Icm-20600 diagnostics
 	add_to_mistakes_log(icm_20600_check_if_alive(icm_instance));
 
@@ -18,6 +21,9 @@ void device_self_diagnosticks(icm_20600_instance * icm_instance, nrf24l01p *nrf2
 	default: break;
 	}
 
+
+	delay_in_milliseconds(500);
+
 	// Motor 2 rotation check
 	motors_rotation_test_resalt = motors_rotation_deiraction_test(second_motor_instance);
 	switch(motors_rotation_test_resalt){
@@ -26,5 +32,30 @@ void device_self_diagnosticks(icm_20600_instance * icm_instance, nrf24l01p *nrf2
 	case 0: break;
 	default: break;
 	}
+}
 
+
+/*
+	@brief Gets 100 gyroscope measurements and counts average
+ */
+
+void imu_gyro_calibration(icm_20600_instance *icm_instance, int16_t calibration_coeficients[3])
+{
+
+	int16_t raw_imu_data[7] = {0, 0, 0, 0, 0, 0, 0};
+
+	int32_t gyroscope_raw_sums[3] = {0, 0, 0};
+
+	for (uint32_t i = 0; i < 256; i++)
+	{
+		delay_in_milliseconds(25); // 40 times per second
+		icm_20600_get_raw_data(icm_instance, raw_imu_data);
+		gyroscope_raw_sums[icm_x] += raw_imu_data[icm_gyroscope_x];
+		gyroscope_raw_sums[icm_y] += raw_imu_data[icm_gyroscope_y];
+		gyroscope_raw_sums[icm_z] += raw_imu_data[icm_gyroscope_z];
+	}
+
+	calibration_coeficients[icm_x] = (int16_t)(gyroscope_raw_sums[icm_x] / 256);
+	calibration_coeficients[icm_y] = (int16_t)(gyroscope_raw_sums[icm_y] / 256);
+	calibration_coeficients[icm_z] = (int16_t)(gyroscope_raw_sums[icm_z] / 256);
 }

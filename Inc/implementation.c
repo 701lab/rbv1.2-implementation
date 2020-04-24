@@ -47,12 +47,14 @@
 		If mistake code is equal to 0 doens't log it
 
 	@param[in] mistake_code - mistakes code to be written to log.
+
+	@return Mistake code that was inputted to the function
  */
-void add_to_mistakes_log(uint32_t mistake_code)
+uint32_t add_to_mistakes_log(uint32_t mistake_code)
 {
 	if(mistake_code == 0)
 	{
-		return;
+		return 0;
 	}
 
 	mistakes_log[mistakes_log_pointer].mistake_code = mistake_code;
@@ -64,6 +66,8 @@ void add_to_mistakes_log(uint32_t mistake_code)
 	{
 		mistakes_log_pointer = 0;
 	}
+
+	return mistake_code;
 }
 
 /*
