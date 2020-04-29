@@ -69,10 +69,12 @@ position_control motor2_position_controller =
 // ****** ICM-20600 declaration ****** //
 // *********************************** //
 // Пока оставлю, не уверен, чт одля данного проекта мне это нужно, но все же
-icm_20600_instance robot_imu = {.device_was_initialized = 0};
+icm_20600 robot_imu = {.device_was_initialized = 0};
 int16_t icm_raw_data[7] = { 0, 0, 0, 0, 0, 0, 0 };
 float icm_processed_data[7] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
 int16_t gyro_calib_values[3] = {0, 0, 0};
+
+float x_z_plane_angle = 0.0f;
 
 // *********************************** //
 // ****** NRF24L01+ declaration ****** //
@@ -121,10 +123,10 @@ int main(void)
 	robot_imu.gyro_full_scale_setup = icm_gyro_500dps;
 	robot_imu.accel_full_scale_setup = icm_accel_2g;
 	robot_imu.enable_temperature_sensor = 0;
-	// If the device is not calibrated should all be 0 for proper calibration. If gyro scale was changed, values should be recalibrated
-	robot_imu.gyro_calibration_coefficients[icm_x] = -23;
+	robot_imu.gyro_calibration_coefficients[icm_x] = -21;
 	robot_imu.gyro_calibration_coefficients[icm_y] = 428;
-	robot_imu.gyro_calibration_coefficients[icm_z] = -81;
+	robot_imu.gyro_calibration_coefficients[icm_z] = -77;
+	robot_imu.complementary_filter_coefficient = 0.95;
 
 	// ****** NRF24L01+ initialization ****** //
 	robot_nrf24.ce_high = gpiob0_high;
@@ -154,18 +156,18 @@ int main(void)
 
 	add_to_mistakes_log(icm_20600_basic_init(&robot_imu));
 
-	imu_gyro_calibration(&robot_imu, gyro_calib_values);
+//	imu_gyro_calibration(&robot_imu, gyro_calib_values);
 
 //	device_self_diagnosticks(&robot_imu, &robot_nrf24, &motor1, &motor2);
 
 
 	while(1)
 	{
-		delay_in_milliseconds(50);
+		delay_in_milliseconds(200);
 
-		add_to_mistakes_log(icm_20600_get_raw_data(&robot_imu, icm_raw_data));
+//		add_to_mistakes_log(icm_20600_get_raw_data(&robot_imu, icm_raw_data));
 //		add_to_mistakes_log(icm_20600_get_proccesed_data(&robot_imu, icm_processed_data));
-//		GPIOD->ODR ^= 0x08;
+		GPIOD->ODR ^= 0x08;
 	}
 }
 
@@ -201,6 +203,11 @@ void SysTick_Handler()
 		float m2_speed_task = motors_speed_controller_handler(&motor2, SPEED_LOOP_PERIOD);
 		motor1.set_pwm_duty_cycle((int32_t)m1_speed_task);
 		motor2.set_pwm_duty_cycle((int32_t)m2_speed_task);
+
+
+		// 20 раз в секунду чисто для тестов IMU
+		add_to_mistakes_log(icm_20600_calculate_z_x_angle(&robot_imu, &x_z_plane_angle, SPEED_LOOP_PERIOD));
+
 	}
 
 //	// *** Position control handling *** //

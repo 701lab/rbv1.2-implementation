@@ -63,3 +63,26 @@ void imu_gyro_calibration(icm_20600 *icm_instance, int16_t calibration_coeficien
 	calibration_coeficients[icm_y] = (int16_t)(gyroscope_raw_sums[icm_y] / 256);
 	calibration_coeficients[icm_z] = (int16_t)(gyroscope_raw_sums[icm_z] / 256);
 }
+
+
+
+// !!!!!!!!!!!!!!!!!!!!!!!!!!  //
+// Danger zone
+// !!!!!!!!!!!!!!!!!!!!!!!!!!! //
+
+
+//void balancing_init(icm_20600 *icm_instance)
+//{
+//	// Перед запуском алгоритма балансирования нужно убедиться в том, какой именно угол сейчас у корпуса робота. Происходить такое вычисление будет только для плоскости Oxz,
+//	//	так как только она используется в алгоритмах балансирования
+//	float processed_values[7];
+//	icm_20600_get_proccesed_data(icm_instance, processed_values);
+//
+////	float accelerometer_based_angle = atan2(processed_values[icm_accelerometer_x], processed_values[icm_accelerometer_z]);
+//	= atan2(processed_values[icm_accelerometer_x], processed_values[icm_accelerometer_z]);
+//
+//
+//}
+
+
+

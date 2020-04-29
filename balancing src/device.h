@@ -18,7 +18,7 @@ void device_self_diagnosticks(icm_20600 * icm_instance, nrf24l01p *nrf24_instanc
 
 void imu_gyro_calibration(icm_20600 *icm_instance, int16_t calibration_coeficients[3]);
 
-
+void balancing_init(icm_20600 *icm_instance);
 
 
 

@@ -79,7 +79,7 @@ position_control motor2_position_controller =
 					.target_position = 0.0f,
 			};
 
-icm_20600_instance robot_imu;
+icm_20600 robot_imu = {.device_was_initialized = 0};
 
 nrf24l01p robot_nrf24 = {.device_was_initialized = 0};
 
