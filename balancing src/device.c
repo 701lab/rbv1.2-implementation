@@ -1,7 +1,7 @@
 #include "device.h"
 
 
-void device_self_diagnosticks(icm_20600_instance * icm_instance, nrf24l01p *nrf24_instance, motor * first_motor_instance, motor * second_motor_instance)
+void device_self_diagnosticks(icm_20600 * icm_instance, nrf24l01p *nrf24_instance, motor * first_motor_instance, motor * second_motor_instance)
 {
 
 	GPIOD->ODR |= 0x08;
@@ -39,8 +39,12 @@ void device_self_diagnosticks(icm_20600_instance * icm_instance, nrf24l01p *nrf2
 	@brief Gets 100 gyroscope measurements and counts average
  */
 
-void imu_gyro_calibration(icm_20600_instance *icm_instance, int16_t calibration_coeficients[3])
+void imu_gyro_calibration(icm_20600 *icm_instance, int16_t calibration_coeficients[3])
 {
+	// Delete previous calibration results to get proper values
+	icm_instance->gyro_calibration_coefficients[icm_x] = 0;
+	icm_instance->gyro_calibration_coefficients[icm_y] = 0;
+	icm_instance->gyro_calibration_coefficients[icm_z] = 0;
 
 	int16_t raw_imu_data[7] = {0, 0, 0, 0, 0, 0, 0};
 

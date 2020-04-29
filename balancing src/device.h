@@ -14,9 +14,9 @@
 /*
 	@brief Runs all board diagnostics tests
  */
-void device_self_diagnosticks(icm_20600_instance * icm_instance, nrf24l01p *nrf24_instance, motor * first_motor_instance, motor * second_motor_instance);
+void device_self_diagnosticks(icm_20600 * icm_instance, nrf24l01p *nrf24_instance, motor * first_motor_instance, motor * second_motor_instance);
 
-void imu_gyro_calibration(icm_20600_instance *icm_instance, int16_t calibration_coeficients[3]);
+void imu_gyro_calibration(icm_20600 *icm_instance, int16_t calibration_coeficients[3]);
 
 
 
