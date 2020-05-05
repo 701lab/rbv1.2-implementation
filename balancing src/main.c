@@ -117,17 +117,17 @@ float angle_loop_mistake;
 float angle_loop_previous_mistake = 0.0f;
 float angle_loop_integral = 0.0f;
 float angle_loop_control_signal = 0.0f;
-float angle_regulator_kp = 0.2;
-float angle_regulator_ki = 0.25;
-float angle_regulator_kd = 0.01;
+float angle_regulator_kp = 0.3f;
+float angle_regulator_ki = 0.05f;
+float angle_regulator_kd = 0.05f; //0.01;
 float balancing_fault = 0;
 // Speed regulator
 float rotation_task = 0.0f;
 float speed_reg_mistake;
 float speed_reg_task = 0.0f;
 //float speed_reg_max_output = 10.0f;
-float speed_reg_ki = 1.2f; //1.2f;
-float speed_reg_kp = 1.2f; //1.2f;
+float speed_reg_ki = 0.0f; //1.2f; //1.2f;
+float speed_reg_kp = 0.0f; //1.2f; //1.2f;
 float speed_reg_integral = 0;
 float speed_reg_control_signal;
 int16_t previousEncoderTicks = 0;
@@ -186,9 +186,9 @@ int main(void)
 
 	// Board is online LED
 	// Для отладки (проверки того, что новый код действительно был скомпилирована и прошит) время от времени буду менять, какой из светодиодов горт.
-	GPIOD->ODR |= 0x08;
+//	GPIOD->ODR |= 0x08;
 //	GPIOD->ODR |= 0x04;
-//	GPIOD->ODR |= 0x02;
+	GPIOD->ODR |= 0x02;
 //	GPIOD->ODR |= 0x01;
 
 	// Enables both motors
@@ -231,13 +231,13 @@ uint32_t speed_loop_call_counter = 0;
 
 uint32_t angle_loop_call_counter = 0;
 
-#define ANGLE_LOOP_FREQUENCY				10	// Times per second. Must be not bigger then SYSTICK_FREQUENCY.
+#define ANGLE_LOOP_FREQUENCY				20	// Times per second. Must be not bigger then SYSTICK_FREQUENCY.
 #define ANGLE_LOOP_COUNTER_MAX_VALUE 		SYSTICK_FREQUENCY / ANGLE_LOOP_FREQUENCY	// Times.
 #define ANGLE_LOOP_PERIOD					1.0f / (float)(ANGLE_LOOP_FREQUENCY) // Seconds.
 
 uint32_t angle_speed_loop_call_counter = 0;
 
-#define ANGLE_SPEED_LOOP_FREQUENCY			5
+#define ANGLE_SPEED_LOOP_FREQUENCY			10
 #define ANGLE_SPEED_LOOP_COUNTER_MAX_VALUE	SYSTICK_FREQUENCY / ANGLE_SPEED_LOOP_FREQUENCY
 #define ANGLE_SPEED_LOOP_PERIOD				1.0f / (float)(ANGLE_SPEED_LOOP_FREQUENCY)
 
@@ -436,12 +436,12 @@ void handle_angle_reg(icm_20600 *icm_instance, int16_t icm_data[], float integra
 	if (!((angle_loop_control_signal > angle_loop_max_output && angle_loop_mistake < 0.0f) || (angle_loop_control_signal < -angle_loop_max_output && angle_loop_mistake > 0.0f)))
 	{
 		// Если значение интеграла не находится в насыщении, интегрируем
-		angle_loop_integral = (angle_loop_mistake + angle_loop_previous_mistake) / 2.0f * integration_period;
+		angle_loop_integral += (angle_loop_mistake + angle_loop_previous_mistake) / 2.0f * integration_period;
 	}
 	angle_loop_previous_mistake = angle_loop_mistake;
 
 	// PID controller without filter on D-part
-	angle_loop_control_signal = angle_loop_mistake * angle_regulator_kp + angle_loop_integral * angle_regulator_ki + icm_processed_data[icm_gyroscope_y] * angle_regulator_kd;
+	angle_loop_control_signal = -1* (angle_loop_mistake * angle_regulator_kp + angle_loop_integral * angle_regulator_ki - icm_processed_data[icm_gyroscope_y] * angle_regulator_kd);
 
 	// Заставить моторы крутиться с нужной скоростью
 	motor1.speed_controller->target_speed = angle_loop_control_signal;
@@ -465,7 +465,8 @@ void handle_speed_reg(float average_motors_speed)
 
 	if (speed_reg_control_signal < 10.0f && speed_reg_control_signal > -10.0f)
 	{
-		angle_loop_task = actual_zero_angle - speed_reg_control_signal;
+//		angle_loop_task = actual_zero_angle - speed_reg_control_signal;
+		angle_loop_task = actual_zero_angle + speed_reg_control_signal;
 	}
 
 }
