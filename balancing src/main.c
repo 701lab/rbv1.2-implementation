@@ -109,19 +109,19 @@ void clear_int_array(int32_t input_array[], uint32_t array_length);
 
 int32_t icm_filtering_data [7] = {0, 0, 0, 0, 0, 0, 0};
 // Angle regulator
-float actual_zero_angle = 91.0f; // deg
-float angle_loop_task = 91.0f;	// deg
+float actual_zero_angle = 90.5f; // deg
+float angle_loop_task = 90.5f;	// deg
 // !! Важно видеть этот момент, так как сейчас я не использую всей скороости
 //float angle_loop_max_output = 2.0f;	// RRM
-float angle_loop_max_output = 8.0f;	// RRM
+float angle_loop_max_output = 7.0f;	// RRM
 float angle_current_value = 0.0f;	// deg
 float angle_loop_mistake;
 float angle_loop_previous_mistake = 0.0f;
 float angle_loop_integral = 0.0f;
 float angle_loop_control_signal = 0.0f;
-float angle_regulator_kp = 0.5f;//0.4f;
-float angle_regulator_ki = 2.0f;//3.0f;
-float angle_regulator_kd = 0.01f;//0.01f;//0.001f; //02f; //0.01;
+float angle_regulator_kp = 0.3f;//0.4f;
+float angle_regulator_ki = 3.0f;//3.0f;
+float angle_regulator_kd = 0.0f;//0.01f;//0.001f; //02f; //0.01;
 float balancing_fault = 0;
 
 float angle_loop_p_part = 0.0f;
@@ -133,7 +133,7 @@ float rotation_task = 0.0f;
 float speed_reg_mistake;
 float speed_reg_task = 0.0f;
 //float speed_reg_max_output = 10.0f;
-float speed_reg_ki = 1.0f; //1.2f;
+float speed_reg_ki = 0.0f; //1.2f;
 float speed_reg_kp = 1.0f;	//1.2f;
 float speed_reg_integral = 0;
 float speed_reg_control_signal;
@@ -142,7 +142,8 @@ float speed_loop_p_part = 0.0f;
 float speed_loop_i_part = 0.0f;
 
 int16_t previousEncoderTicks = 0;
-
+float current_m1_speed;
+float current_m2_speed;
 
 
 // Мусор для отладки
@@ -261,10 +262,6 @@ uint32_t angle_speed_loop_call_counter = 0;
 
 void SysTick_Handler()
 {
-
-	// Нужны для кода управления робото
-	float current_m1_speed;
-	float current_m2_speed;
 
 	// Каждую итерацию вызывать измерения данных у ICM
 	icm_add_data_to_filter(&robot_imu, icm_filtering_data);
@@ -442,6 +439,7 @@ void handle_angle_reg(icm_20600 *icm_instance, int16_t icm_data[], float integra
 		motor1.set_pwm_duty_cycle(0);
 		motor2.set_pwm_duty_cycle(0);
 		angle_loop_integral = 0.0f;
+		angle_loop_task = actual_zero_angle;
 		return;
 	}
 	else
@@ -480,19 +478,20 @@ void handle_speed_reg(float average_motors_speed)
 
 	if (balancing_fault)
 	{
+		speed_reg_integral = 0.0f;
+		speed_reg_mistake = 0.0f;
 		return;
 	}
 
 	speed_reg_mistake = speed_reg_task - average_motors_speed;
 
 	speed_loop_i_part = speed_reg_integral * speed_reg_ki;
-	speed_loop_p_part = speed_reg_mistake*speed_reg_kp;
+	speed_loop_p_part = speed_reg_mistake * speed_reg_kp;
 
 	speed_reg_control_signal = speed_loop_p_part + speed_loop_i_part;
 
 	if (speed_reg_control_signal < 10.0f && speed_reg_control_signal > -10.0f)
 	{
-//		angle_loop_task = actual_zero_angle - speed_reg_control_signal;
 		angle_loop_task = actual_zero_angle + speed_reg_control_signal;
 	}
 
