@@ -58,8 +58,8 @@ uint32_t add_to_mistakes_log(uint32_t mistake_code)
 	}
 
 	mistakes_log[mistakes_log_pointer].mistake_code = mistake_code;
-	mistakes_log[mistakes_log_pointer].mistake_time_in_minuts = time_from_log_enable_in_minutes;
-	mistakes_log[mistakes_log_pointer].mistake_time_in_seconds = TIM14->CNT;
+	mistakes_log[mistakes_log_pointer].mistake_time_in_seconds = time_from_log_enable_in_seconds;
+	mistakes_log[mistakes_log_pointer].mistake_time_in_milliseconds = TIM14->CNT;
 
 	++mistakes_log_pointer;
 	if (mistakes_log_pointer == MISTAKES_LOG_SIZE)
@@ -79,7 +79,7 @@ void TIM14_IRQHandler()
 {
 	TIM14->SR &= ~TIM_SR_UIF;
 
-	++time_from_log_enable_in_minutes;
+	++time_from_log_enable_in_seconds;
 
 	// Place to put code to write into EEPROM (for development of future devices)
 }

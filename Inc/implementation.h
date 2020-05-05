@@ -217,8 +217,8 @@ void gpiob12_low(void);
 // @brief Mistakes log entry form
 typedef struct{
 	uint32_t mistake_code;
+	uint32_t mistake_time_in_milliseconds;
 	uint32_t mistake_time_in_seconds;
-	uint32_t mistake_time_in_minuts;
 } mistake;
 
 /*** Global variables declaration ***/
@@ -247,7 +247,7 @@ typedef struct{
 _DECL mistake mistakes_log[MISTAKES_LOG_SIZE];
 _DECL uint32_t mistakes_log_pointer _INIT(0);
 _DECL uint32_t critical_mistake_detected _INIT(0);		/* will be 1 - if there were a critical mistake. System should be stopped. All performance critical objects should be returned to safe state and be deactivated */
-_DECL uint32_t time_from_log_enable_in_minutes _INIT(0);
+_DECL uint32_t time_from_log_enable_in_seconds _INIT(0);
 
 _DECL uint32_t delay_is_finished _INIT(0);
 
