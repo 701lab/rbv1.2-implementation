@@ -125,6 +125,10 @@ float motors_get_position(motor *motor_instance)
 	return current_encoder_counter_value;
 }
 
+
+
+
+
 float motors_position_controller_handler(motor *motor_instance)
 {
 	if ( motor_instance->position_controller == 0 )
@@ -148,3 +152,21 @@ float motors_position_controller_handler(motor *motor_instance)
 }
 
 
+
+
+
+
+void motor_reset(motor *motor_instance)
+{
+//	motor_instance->motor_disable();
+	if(motor_instance->speed_controller != 0)
+	{
+		motor_instance->speed_controller->target_speed = 0.0f;
+		motor_instance->speed_controller->current_integral = 0.0f;
+	}
+	else
+	{
+		// if there is no speed controller for the motor
+		motor_instance->set_pwm_duty_cycle(0);
+	}
+}

@@ -85,4 +85,7 @@ float motors_speed_controller_handler(const motor *motor_instance, const float t
 
 float motors_combined_position_controller_nadler(motor *motor_instance);
 
+
+void motor_reset(motor *motor_instance);
+
 #endif /* MOTORS_H_ */
