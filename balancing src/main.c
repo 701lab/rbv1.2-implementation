@@ -109,28 +109,46 @@ void clear_int_array(int32_t input_array[], uint32_t array_length);
 
 int32_t icm_filtering_data [7] = {0, 0, 0, 0, 0, 0, 0};
 // Angle regulator
-float actual_zero_angle = 90.0f; // deg
-float angle_loop_task = 90.0f;	// deg
-float angle_loop_max_output = 2.0f;	// RRM
+float actual_zero_angle = 91.0f; // deg
+float angle_loop_task = 91.0f;	// deg
+// !! Важно видеть этот момент, так как сейчас я не использую всей скороости
+//float angle_loop_max_output = 2.0f;	// RRM
+float angle_loop_max_output = 8.0f;	// RRM
 float angle_current_value = 0.0f;	// deg
 float angle_loop_mistake;
 float angle_loop_previous_mistake = 0.0f;
 float angle_loop_integral = 0.0f;
 float angle_loop_control_signal = 0.0f;
-float angle_regulator_kp = 0.3f;
-float angle_regulator_ki = 0.05f;
-float angle_regulator_kd = 0.05f; //0.01;
+float angle_regulator_kp = 0.5f;//0.4f;
+float angle_regulator_ki = 2.0f;//3.0f;
+float angle_regulator_kd = 0.01f;//0.01f;//0.001f; //02f; //0.01;
 float balancing_fault = 0;
+
+float angle_loop_p_part = 0.0f;
+float angle_loop_i_part = 0.0f;
+float angle_loop_d_part = 0.0f;
+
 // Speed regulator
 float rotation_task = 0.0f;
 float speed_reg_mistake;
 float speed_reg_task = 0.0f;
 //float speed_reg_max_output = 10.0f;
-float speed_reg_ki = 0.0f; //1.2f; //1.2f;
-float speed_reg_kp = 0.0f; //1.2f; //1.2f;
+float speed_reg_ki = 1.0f; //1.2f;
+float speed_reg_kp = 1.0f;	//1.2f;
 float speed_reg_integral = 0;
 float speed_reg_control_signal;
+
+float speed_loop_p_part = 0.0f;
+float speed_loop_i_part = 0.0f;
+
 int16_t previousEncoderTicks = 0;
+
+
+
+// Мусор для отладки
+int16_t raw_filtered_data_arrary[7];
+float accelerometer_based_angle;
+float gyroscope_based_angle;
 
 int main(void)
 {
@@ -165,10 +183,10 @@ int main(void)
 	robot_imu.gyro_full_scale_setup = icm_gyro_500dps;
 	robot_imu.accel_full_scale_setup = icm_accel_2g;
 	robot_imu.enable_temperature_sensor = 0;
-	robot_imu.gyro_calibration_coefficients[icm_x] = -21;
-	robot_imu.gyro_calibration_coefficients[icm_y] = 428;
-	robot_imu.gyro_calibration_coefficients[icm_z] = -77;
-	robot_imu.complementary_filter_coefficient = 0.5f;
+	robot_imu.gyro_calibration_coefficients[icm_x] = -35;
+	robot_imu.gyro_calibration_coefficients[icm_y] = 412;
+	robot_imu.gyro_calibration_coefficients[icm_z] = -84;
+	robot_imu.complementary_filter_coefficient = 0.1f;
 
 	// ****** NRF24L01+ initialization ****** //
 	robot_nrf24.ce_high = gpiob0_high;
@@ -187,8 +205,8 @@ int main(void)
 	// Board is online LED
 	// Для отладки (проверки того, что новый код действительно был скомпилирована и прошит) время от времени буду менять, какой из светодиодов горт.
 //	GPIOD->ODR |= 0x08;
-//	GPIOD->ODR |= 0x04;
-	GPIOD->ODR |= 0x02;
+	GPIOD->ODR |= 0x04;
+//	GPIOD->ODR |= 0x02;
 //	GPIOD->ODR |= 0x01;
 
 	// Enables both motors
@@ -232,14 +250,14 @@ uint32_t speed_loop_call_counter = 0;
 uint32_t angle_loop_call_counter = 0;
 
 #define ANGLE_LOOP_FREQUENCY				20	// Times per second. Must be not bigger then SYSTICK_FREQUENCY.
-#define ANGLE_LOOP_COUNTER_MAX_VALUE 		SYSTICK_FREQUENCY / ANGLE_LOOP_FREQUENCY	// Times.
-#define ANGLE_LOOP_PERIOD					1.0f / (float)(ANGLE_LOOP_FREQUENCY) // Seconds.
+#define ANGLE_LOOP_COUNTER_MAX_VALUE 		( SYSTICK_FREQUENCY / ANGLE_LOOP_FREQUENCY )	// Times.
+#define ANGLE_LOOP_PERIOD					( 1.0f / (float)(ANGLE_LOOP_FREQUENCY) )// Seconds.
 
 uint32_t angle_speed_loop_call_counter = 0;
 
 #define ANGLE_SPEED_LOOP_FREQUENCY			10
-#define ANGLE_SPEED_LOOP_COUNTER_MAX_VALUE	SYSTICK_FREQUENCY / ANGLE_SPEED_LOOP_FREQUENCY
-#define ANGLE_SPEED_LOOP_PERIOD				1.0f / (float)(ANGLE_SPEED_LOOP_FREQUENCY)
+#define ANGLE_SPEED_LOOP_COUNTER_MAX_VALUE	( SYSTICK_FREQUENCY / ANGLE_SPEED_LOOP_FREQUENCY )
+#define ANGLE_SPEED_LOOP_PERIOD				( 1.0f / (float)(ANGLE_SPEED_LOOP_FREQUENCY) )
 
 void SysTick_Handler()
 {
@@ -258,10 +276,10 @@ void SysTick_Handler()
 		speed_loop_call_counter = 0;
 		current_m1_speed = motors_get_speed_by_incements(&motor1, SPEED_LOOP_PERIOD);
 		current_m2_speed = motors_get_speed_by_incements(&motor2, SPEED_LOOP_PERIOD);
-		float m1_speed_task = motors_speed_controller_handler(&motor1, SPEED_LOOP_PERIOD);
-		float m2_speed_task = motors_speed_controller_handler(&motor2, SPEED_LOOP_PERIOD);
-		motor1.set_pwm_duty_cycle((int32_t)m1_speed_task);
-		motor2.set_pwm_duty_cycle((int32_t)m2_speed_task);
+//		float m1_speed_task = motors_speed_controller_handler(&motor1, SPEED_LOOP_PERIOD);
+//		float m2_speed_task = motors_speed_controller_handler(&motor2, SPEED_LOOP_PERIOD);
+//		motor1.set_pwm_duty_cycle((int32_t)m1_speed_task);
+//		motor2.set_pwm_duty_cycle((int32_t)m2_speed_task);
 
 		// Код специально для балансирующего робота. Интегрируем ошибку по скорости
 		speed_reg_integral += (speed_reg_task - (current_m1_speed + current_m2_speed) / 2.0f) * SPEED_LOOP_PERIOD;
@@ -271,19 +289,17 @@ void SysTick_Handler()
 	if ( angle_loop_call_counter == ANGLE_LOOP_COUNTER_MAX_VALUE )
 	{
 		angle_loop_call_counter = 0;
-		int16_t raw_filtered_data[7];
+//		int16_t raw_filtered_data[7];
 
 		// data averaging
 		for(int i = 0; i < 6; i++)
 		{
-			raw_filtered_data[i] = icm_filtering_data[i] / ANGLE_LOOP_COUNTER_MAX_VALUE;
+			raw_filtered_data_arrary[i] = icm_filtering_data[i] / ANGLE_LOOP_COUNTER_MAX_VALUE;
 		}
 
-		handle_angle_reg(&robot_imu, raw_filtered_data, ANGLE_LOOP_PERIOD); // Даст новое задание для двигателей
+		handle_angle_reg(&robot_imu, raw_filtered_data_arrary, ANGLE_LOOP_PERIOD); // Даст новое задание для двигателей
 
 		clear_int_array(icm_filtering_data, 7);
-
-		// Код обработки показаний
 	}
 
 	angle_speed_loop_call_counter += 1;
@@ -404,14 +420,11 @@ void handle_angle_reg(icm_20600 *icm_instance, int16_t icm_data[], float integra
 	icm_20600_procces_raw_data(icm_instance, icm_data, icm_processed_data);
 
 	// Calculation of robot angle
-
-	// This way of calculations is actually not right and should be redesigned
-
 	// как сейчас проводятся вычисления: комплиментарный угол = (угол по акселерометру)*коэффициент + (приращение угла по гироскопу)*(1- коэффициант)
 	// Данный подход является совершенно неправильным, так как уменьшает реальный имеющийся угол в отношении коэффеициента деления. То есть реальный угол на выходе всегда был равен примерно реальный угол * коэффицент фильтра.
 	// что на самом деле совершенно неправильно. Вместо этого надо складывать угол по акселерометру и (приращение кгла по гироскопу + прошлый угол)
-	float accelerometer_based_angle = atan2(-1 * icm_processed_data[icm_accelerometer_x], icm_processed_data[icm_accelerometer_z]) * 57.296f; // Angle in degrees
-	float gyroscope_based_angle = angle_current_value - (icm_instance->previous_gyro_y + icm_processed_data[icm_gyroscope_y])/2.0f * integration_period;	// Разность между последним извесным значением угла и трапециидальным интегралом скорости вращения
+	accelerometer_based_angle = atan2(-1 * icm_processed_data[icm_accelerometer_x], icm_processed_data[icm_accelerometer_z]) * 57.296f; // Angle in degrees
+	gyroscope_based_angle = angle_current_value + (icm_instance->previous_gyro_y + icm_processed_data[icm_gyroscope_y])/2.0f * integration_period;	// Разность между последним извесным значением угла и трапециидальным интегралом скорости вращения
 	icm_instance->previous_gyro_y = icm_processed_data[icm_gyroscope_y];
 
 	angle_current_value = accelerometer_based_angle * icm_instance->complementary_filter_coefficient + gyroscope_based_angle * (1.0f - icm_instance->complementary_filter_coefficient);
@@ -420,11 +433,14 @@ void handle_angle_reg(icm_20600 *icm_instance, int16_t icm_data[], float integra
 	angle_loop_mistake = angle_loop_task - angle_current_value;
 
 	// If angle is too big too balance stop motors
-	if (angle_loop_mistake > 20.0f || angle_loop_mistake < -20.0f)
+	if (angle_loop_mistake > 30.0f || angle_loop_mistake < -30.0f)
 	{
 		balancing_fault = 1;
-		motor_reset(&motor1);
-		motor_reset(&motor2);
+//		motor_reset(&motor1);
+//		motor_reset(&motor2);
+		// пока тестирую без регуляторов скорости
+		motor1.set_pwm_duty_cycle(0);
+		motor2.set_pwm_duty_cycle(0);
 		angle_loop_integral = 0.0f;
 		return;
 	}
@@ -441,11 +457,19 @@ void handle_angle_reg(icm_20600 *icm_instance, int16_t icm_data[], float integra
 	angle_loop_previous_mistake = angle_loop_mistake;
 
 	// PID controller without filter on D-part
-	angle_loop_control_signal = -1* (angle_loop_mistake * angle_regulator_kp + angle_loop_integral * angle_regulator_ki - icm_processed_data[icm_gyroscope_y] * angle_regulator_kd);
+
+	angle_loop_d_part = icm_processed_data[icm_gyroscope_y] * angle_regulator_kd;
+	angle_loop_p_part = angle_loop_mistake * angle_regulator_kp;
+	angle_loop_i_part = angle_loop_integral * angle_regulator_ki;
+
+	angle_loop_control_signal = -1* (angle_loop_p_part + angle_loop_i_part + angle_loop_d_part);
 
 	// Заставить моторы крутиться с нужной скоростью
-	motor1.speed_controller->target_speed = angle_loop_control_signal;
-	motor2.speed_controller->target_speed = angle_loop_control_signal;
+//	motor1.speed_controller->target_speed = angle_loop_control_signal;
+//	motor2.speed_controller->target_speed = angle_loop_control_signal;
+
+	motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
+	motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
 
 	return;
 }
@@ -461,7 +485,10 @@ void handle_speed_reg(float average_motors_speed)
 
 	speed_reg_mistake = speed_reg_task - average_motors_speed;
 
-	speed_reg_control_signal = speed_reg_integral * speed_reg_ki + speed_reg_mistake*speed_reg_kp;
+	speed_loop_i_part = speed_reg_integral * speed_reg_ki;
+	speed_loop_p_part = speed_reg_mistake*speed_reg_kp;
+
+	speed_reg_control_signal = speed_loop_p_part + speed_loop_i_part;
 
 	if (speed_reg_control_signal < 10.0f && speed_reg_control_signal > -10.0f)
 	{
