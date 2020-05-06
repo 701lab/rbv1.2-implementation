@@ -120,7 +120,7 @@ float angle_loop_previous_mistake = 0.0f;
 float angle_loop_integral = 0.0f;
 float angle_loop_control_signal = 0.0f;
 float angle_regulator_kp = 0.4f;//0.4f;
-float angle_regulator_ki = 3.0f;//3.0f;
+float angle_regulator_ki = 2.0f;//3.0f;
 float angle_regulator_kd = 0.00f;//0.01f;//0.001f; //02f; //0.01;
 float balancing_fault = 0;
 
@@ -133,8 +133,8 @@ float rotation_task = 0.0f;
 float speed_reg_mistake;
 float speed_reg_task = 0.0f;
 //float speed_reg_max_output = 10.0f;
-float speed_reg_ki = 0.3f; //0.5f;
-float speed_reg_kp = 0.8f;	//1.5f;
+float speed_reg_ki = 0.5f; //0.5f;
+float speed_reg_kp = 2.0f;	//1.5f;
 float speed_reg_integral = 0;
 float speed_reg_control_signal;
 
