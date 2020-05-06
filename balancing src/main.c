@@ -128,7 +128,7 @@ float angle_loop_p_part = 0.0f;
 float angle_loop_i_part = 0.0f;
 float angle_loop_d_part = 0.0f;
 
-float rotation_task = 1.0f;
+float robot_rotation_task = 0.0f;
 float rotation_mistake = 0.0f;
 float rotation_integral = 0.0f;
 
@@ -284,7 +284,7 @@ void SysTick_Handler()
 		current_m1_speed = motors_get_speed_by_incements(&motor1, SPEED_LOOP_PERIOD);
 		current_m2_speed = motors_get_speed_by_incements(&motor2, SPEED_LOOP_PERIOD);
 
-		rotation_mistake = rotation_task - (current_m2_speed - current_m1_speed) / 0.18f ; // где 0.18 - длина оси в метрах/*тут должна бытьдлина оси*/
+		rotation_mistake = robot_rotation_task;// - (current_m2_speed - current_m1_speed) / 0.18f ; // где 0.18 - длина оси в метрах/*тут должна бытьдлина оси*/
 		if (rotation_mistake > 2 )
 		{
 			rotation_mistake = 2;
@@ -425,28 +425,37 @@ void handle_angle_reg(icm_20600 *icm_instance, int16_t icm_data[], float integra
 
 	if( rotation_mistake > 0)
 	{
+		GPIOD->ODR ^= 0x02;
 		if (angle_loop_control_signal > 0)
 		{
 			motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
-			motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f + rotation_mistake * 300);
+			motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f + rotation_mistake * 300.0f);
 
 		}
-		else{
-			motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f - rotation_mistake * 300);
+		else
+		{
+			motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f - rotation_mistake * 300.0f);
 			motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
+		}
+	}
+	else if (rotation_mistake < 0)
+	{
+		GPIOD->ODR ^= 0x04;
+		if(angle_loop_control_signal > 0)
+		{
+			motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f - rotation_mistake * 300.0f);
+			motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
+		}
+		else
+		{
+			motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
+			motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f + rotation_mistake * 300.0f);
 		}
 	}
 	else
 	{
-		if(angle_loop_control_signal > 0)
-		{
-			motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f + rotation_mistake * 300);
-			motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
-		}
-		else{
-			motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
-			motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f - rotation_mistake * 300);
-		}
+		motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
+		motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
 	}
 
 
@@ -503,69 +512,59 @@ void EXTI2_3_IRQHandler()
 	GPIOD->ODR |= 0x01;
 
 	nrf24_data_has_been_captured = 1;
-	float left_motor_speed_task = 0.0f;
-	float left_motor_boost = 0.0f;
-	float right_motor_speed_task = 0.0f;
-	float right_motor_boost = 0.0f;
+	robot_rotation_task = 0.0f;
+	speed_reg_task = 0.0f;
 
 	// Check for buttons press
-	if((nrf_input_data[4] & 0x14) == 0x14){ // means, that top right button is unpressed
-		// Do nothing
-	}
-	else if((nrf_input_data[4] & 0x04) == 0){
-		left_motor_boost = 0.3f;
-		right_motor_boost = 0.3f;
-	}
-	else{
-		left_motor_boost = 0.6f;
-		right_motor_boost = 0.6f;
-	}
+//	if((nrf_input_data[4] & 0x14) == 0x14){ // means, that top right button is unpressed
+//		// Do nothing
+//	}
+//	else if((nrf_input_data[4] & 0x04) == 0){
+//		left_motor_boost = 0.3f;
+//		right_motor_boost = 0.3f;
+//	}
+//	else{
+//		left_motor_boost = 0.6f;
+//		right_motor_boost = 0.6f;
+//	}
 
 	// Evaluate the speed tasks
 	if(nrf_input_data[2] < 1000 /*means it up*/ && nrf_input_data[1] < 3000 && nrf_input_data[1] > 1000) // Forward
 	{
-		left_motor_speed_task = 1.0f + left_motor_boost;
-		right_motor_speed_task = 1.0f + right_motor_boost;
+		speed_reg_task = 1.0f;
 	}
 	else if(nrf_input_data[2] < 1000 /*means it up*/ && nrf_input_data[1] < 1000)	// Forward left
 	{
-		left_motor_speed_task = 0.2f + left_motor_boost;
-		right_motor_speed_task = 1.0f + right_motor_boost;
+		speed_reg_task = 0.5f;
+		robot_rotation_task = 0.5f;
 	}
 	else if(nrf_input_data[2] > 1000 && nrf_input_data[2] < 3000 && nrf_input_data[1] < 1000)	// Turn left
 	{
-		left_motor_speed_task = -0.6f - left_motor_boost;
-		right_motor_speed_task = 0.6f + right_motor_boost;
+		robot_rotation_task = 1.0f;
 	}
 	else if(nrf_input_data[2] > 3000 && nrf_input_data[1] < 1000)	// Backward left
 	{
-		left_motor_speed_task = -0.2f - left_motor_boost;
-		right_motor_speed_task = -1.0f - right_motor_boost;
+		speed_reg_task = -0.5f;
+		robot_rotation_task = -0.5f;
 	}
 	else if(nrf_input_data[2] > 3000  && nrf_input_data[1] < 3000 && nrf_input_data[1] > 1000)	// Backward
 	{
-		left_motor_speed_task = -1.0f - left_motor_boost;
-		right_motor_speed_task = -1.0f - right_motor_boost;
+		speed_reg_task = -1.0f;
 	}
 	else if(nrf_input_data[2] > 3000 && nrf_input_data[1] > 3000)	// Backward right
 	{
-		left_motor_speed_task = -1.0f - left_motor_boost;
-		right_motor_speed_task = -0.2f - right_motor_boost;
+		speed_reg_task = -0.5f;
+		robot_rotation_task = 0.5f;
 	}
 	else if(nrf_input_data[2] < 1000 && nrf_input_data[1] > 3000)	// Forward right
 	{
-		left_motor_speed_task = 1.0f + left_motor_boost;
-		right_motor_speed_task = 0.2f + right_motor_boost;
+		speed_reg_task = 0.5f;
+		robot_rotation_task = -0.5f;
 	}
 	else if(nrf_input_data[2] > 1000 && nrf_input_data[2] < 3000 && nrf_input_data[1] > 3000)	// Turn right
 	{
-		left_motor_speed_task = 0.6f + left_motor_boost;
-		right_motor_speed_task = -0.6f - right_motor_boost;
+		robot_rotation_task = -1.0f;
 	}
-
-	// Set new speed tasks
-	motor1.speed_controller->target_speed = left_motor_speed_task;
-	motor2.speed_controller->target_speed = right_motor_speed_task;
 }
 // **************************************** //
 
