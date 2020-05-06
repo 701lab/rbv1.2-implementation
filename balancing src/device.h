@@ -5,6 +5,13 @@
 #ifndef DEVICE_H_
 #define DEVICE_H_
 
+
+// *** Libraries based defines *** //
+#define NRF24L01P_MISTAKES_OFFSET 		100
+#define ICM_20600_MISTAKES_OFFSET		200
+
+
+
 #include "implementation.h"
 #include "icm-20600_impi.h"
 #include "nrf24l01p_impi.h"

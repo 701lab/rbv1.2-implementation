@@ -882,7 +882,6 @@ void TIM16_IRQHandler()
 }
 
 
-
 void delay_in_milliseconds(const uint16_t time_in_millisecond){
 //	for(uint32_t iterator = 0; iterator < time_in_millisecond; ++iterator);
 	TIM16->ARR = time_in_millisecond-1;

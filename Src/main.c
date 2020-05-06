@@ -10,6 +10,11 @@
 
 // For global variables declareation
 #define VAR_DECLS
+// *** Libraries based defines *** //
+#define NRF24L01P_MISTAKES_OFFSET 		100
+#define ICM_20600_MISTAKES_OFFSET		200
+
+
 
 #include "implementation.h"
 #include "icm-20600_impi.h"
