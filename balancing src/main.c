@@ -119,9 +119,9 @@ float angle_loop_mistake;
 float angle_loop_previous_mistake = 0.0f;
 float angle_loop_integral = 0.0f;
 float angle_loop_control_signal = 0.0f;
-float angle_regulator_kp = 0.30f;//0.4f;
-float angle_regulator_ki = 2.8f;//3.0f;
-float angle_regulator_kd = 0.00f;//0.01f;//0.001f; //02f; //0.01;
+float angle_regulator_kp = 0.5f;//0.3f;
+float angle_regulator_ki = 5.0f;//2.8f;
+float angle_regulator_kd = 0.00f;//0.0;
 float balancing_fault = 0;
 
 float angle_loop_p_part = 0.0f;
@@ -137,7 +137,7 @@ float rotation_integral = 0.0f;
 float speed_reg_mistake;
 float speed_reg_task = 0.0f;
 //float speed_reg_max_output = 10.0f;
-float speed_reg_ki = 0.5f; //0.5f;
+float speed_reg_ki = 1.0f; //0.5f;
 float speed_reg_kp = 2.2f;	//1.5f;
 float speed_reg_integral = 0;
 float speed_reg_control_signal;
@@ -386,7 +386,7 @@ void handle_angle_reg(icm_20600 *icm_instance, int16_t icm_data[], float integra
 	angle_loop_mistake = angle_loop_task - angle_current_value;
 
 	// If angle is too big too balance stop motors
-	if (angle_loop_mistake > 30.0f || angle_loop_mistake < -30.0f)
+	if (angle_loop_mistake > 20.0f || angle_loop_mistake < -20.0f)
 	{
 		balancing_fault = 1;
 //		motor_reset(&motor1);
@@ -425,7 +425,6 @@ void handle_angle_reg(icm_20600 *icm_instance, int16_t icm_data[], float integra
 
 	if( rotation_mistake > 0)
 	{
-		GPIOD->ODR ^= 0x02;
 		if (angle_loop_control_signal > 0)
 		{
 			motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
@@ -440,7 +439,6 @@ void handle_angle_reg(icm_20600 *icm_instance, int16_t icm_data[], float integra
 	}
 	else if (rotation_mistake < 0)
 	{
-		GPIOD->ODR ^= 0x04;
 		if(angle_loop_control_signal > 0)
 		{
 			motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f - rotation_mistake * 300.0f);
@@ -532,38 +530,46 @@ void EXTI2_3_IRQHandler()
 	if(nrf_input_data[2] < 1000 /*means it up*/ && nrf_input_data[1] < 3000 && nrf_input_data[1] > 1000) // Forward
 	{
 		speed_reg_task = 1.5f;
+		speed_reg_integral = 0.0f;
 	}
 	else if(nrf_input_data[2] < 1000 /*means it up*/ && nrf_input_data[1] < 1000)	// Forward left
 	{
 		speed_reg_task = 1.0f;
 		robot_rotation_task = 0.5f;
+		speed_reg_integral = 0.0f;
 	}
 	else if(nrf_input_data[2] > 1000 && nrf_input_data[2] < 3000 && nrf_input_data[1] < 1000)	// Turn left
 	{
 		robot_rotation_task = 1.0f;
+		speed_reg_integral = 0.0f;
 	}
 	else if(nrf_input_data[2] > 3000 && nrf_input_data[1] < 1000)	// Backward left
 	{
 		speed_reg_task = -1.0f;
 		robot_rotation_task = -0.5f;
+		speed_reg_integral = 0.0f;
 	}
 	else if(nrf_input_data[2] > 3000  && nrf_input_data[1] < 3000 && nrf_input_data[1] > 1000)	// Backward
 	{
 		speed_reg_task = -1.5f;
+		speed_reg_integral = 0.0f;
 	}
 	else if(nrf_input_data[2] > 3000 && nrf_input_data[1] > 3000)	// Backward right
 	{
 		speed_reg_task = -1.0f;
 		robot_rotation_task = 0.5f;
+		speed_reg_integral = 0.0f;
 	}
 	else if(nrf_input_data[2] < 1000 && nrf_input_data[1] > 3000)	// Forward right
 	{
 		speed_reg_task = 1.0f;
 		robot_rotation_task = -0.5f;
+		speed_reg_integral = 0.0f;
 	}
 	else if(nrf_input_data[2] > 1000 && nrf_input_data[2] < 3000 && nrf_input_data[1] > 3000)	// Turn right
 	{
 		robot_rotation_task = -1.0f;
+		speed_reg_integral = 0.0f;
 	}
 }
 // **************************************** //
