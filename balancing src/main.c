@@ -128,13 +128,16 @@ float angle_loop_p_part = 0.0f;
 float angle_loop_i_part = 0.0f;
 float angle_loop_d_part = 0.0f;
 
-// Speed regulator
 float rotation_task = 0.0f;
+float rotation_mistake = 0.0f;
+float rotation_integral = 0.0f;
+// Speed regulator
+//float rotation_task = 0.0f;
 float speed_reg_mistake;
 float speed_reg_task = 0.0f;
 //float speed_reg_max_output = 10.0f;
-float speed_reg_ki = 0.3f; //0.5f;
-float speed_reg_kp = 1.8f;	//1.5f;
+float speed_reg_ki = 1.0f; //0.5f;
+float speed_reg_kp = 3.2f;	//1.5f;
 float speed_reg_integral = 0;
 float speed_reg_control_signal;
 
@@ -279,11 +282,18 @@ void SysTick_Handler()
 		speed_loop_call_counter = 0;
 		current_m1_speed = motors_get_speed_by_incements(&motor1, SPEED_LOOP_PERIOD);
 		current_m2_speed = motors_get_speed_by_incements(&motor2, SPEED_LOOP_PERIOD);
-//		float m1_speed_task = motors_speed_controller_handler(&motor1, SPEED_LOOP_PERIOD);
-//		float m2_speed_task = motors_speed_controller_handler(&motor2, SPEED_LOOP_PERIOD);
-//		motor1.set_pwm_duty_cycle((int32_t)m1_speed_task);
-//		motor2.set_pwm_duty_cycle((int32_t)m2_speed_task);
 
+		rotation_mistake = rotation_task - (current_m2_speed - current_m1_speed) / 0.18f ; // где 0.18 - длина оси в метрах/*тут должна бытьдлина оси*/
+		if (rotation_mistake > 2 )
+		{
+			rotation_mistake = 2;
+		}
+		if ( rotation_mistake < -2)
+		{
+			rotation_mistake = -2;
+		}
+
+//		rotation_mistake_integral += rotation_mistake
 		// Код специально для балансирующего робота. Интегрируем ошибку по скорости
 		speed_reg_integral += (speed_reg_task - (current_m1_speed + current_m2_speed) / 2.0f) * SPEED_LOOP_PERIOD;
 	}
@@ -333,6 +343,125 @@ void SysTick_Handler()
 	}
 }
 // **************************************** //
+
+
+// Место для черновых функций, специально для проекта балансирующего робота.
+
+// Данная функция должна принимать данные от IMU и давать задания движения на двигатели
+void handle_angle_reg(icm_20600 *icm_instance, int16_t icm_data[], float integration_period)
+{
+
+	// ICM data at input is actually raw, so it should be first converted into related angle based scales
+
+//	float icm_processed_data[7];
+	icm_20600_procces_raw_data(icm_instance, icm_data, icm_processed_data);
+
+	// Calculation of robot angle
+	// как сейчас проводятся вычисления: комплиментарный угол = (угол по акселерометру)*коэффициент + (приращение угла по гироскопу)*(1- коэффициант)
+	// Данный подход является совершенно неправильным, так как уменьшает реальный имеющийся угол в отношении коэффеициента деления. То есть реальный угол на выходе всегда был равен примерно реальный угол * коэффицент фильтра.
+	// что на самом деле совершенно неправильно. Вместо этого надо складывать угол по акселерометру и (приращение кгла по гироскопу + прошлый угол)
+	accelerometer_based_angle = atan2(-1 * icm_processed_data[icm_accelerometer_x], icm_processed_data[icm_accelerometer_z]) * 57.296f; // Angle in degrees
+	gyroscope_based_angle = angle_current_value + (icm_instance->previous_gyro_y + icm_processed_data[icm_gyroscope_y])/2.0f * integration_period;	// Разность между последним извесным значением угла и трапециидальным интегралом скорости вращения
+	icm_instance->previous_gyro_y = icm_processed_data[icm_gyroscope_y];
+	if(gyroscope_based_angle > 180.0f)
+	{
+		gyroscope_based_angle = -360 + gyroscope_based_angle;
+	}
+	if (gyroscope_based_angle < -180.0f)
+	{
+		gyroscope_based_angle = 360 + gyroscope_based_angle;
+	}
+
+	if ( (gyroscope_based_angle > 0.0f && accelerometer_based_angle < 0.0f) || (gyroscope_based_angle < 0.0f && accelerometer_based_angle > 0.0f) )
+	{
+		gyroscope_based_angle = accelerometer_based_angle;
+	}
+
+	// Проверкае на переход между -180 и 180 и соответственно смену знака
+
+	angle_current_value = accelerometer_based_angle * icm_instance->complementary_filter_coefficient + gyroscope_based_angle * (1.0f - icm_instance->complementary_filter_coefficient);
+//	angle_current_value = -1 * ( accelerometer_based_angle * icm_instance->complementary_filter_coefficient /*+ проверка знака */ - gyroscope_based_angle * (1.0f - icm_instance->complementary_filter_coefficient));
+
+	angle_loop_mistake = angle_loop_task - angle_current_value;
+
+	// If angle is too big too balance stop motors
+	if (angle_loop_mistake > 30.0f || angle_loop_mistake < -30.0f)
+	{
+		balancing_fault = 1;
+//		motor_reset(&motor1);
+//		motor_reset(&motor2);
+		// пока тестирую без регуляторов скорости
+		motor1.set_pwm_duty_cycle(0);
+		motor2.set_pwm_duty_cycle(0);
+		angle_loop_integral = 0.0f;
+		angle_loop_task = actual_zero_angle;
+		return;
+	}
+	else
+	{
+		balancing_fault = 0;
+	}
+
+	if (!((angle_loop_control_signal > angle_loop_max_output && angle_loop_mistake < 0.0f) || (angle_loop_control_signal < -angle_loop_max_output && angle_loop_mistake > 0.0f)))
+	{
+		// Если значение интеграла не находится в насыщении, интегрируем
+		angle_loop_integral += (angle_loop_mistake + angle_loop_previous_mistake) / 2.0f * integration_period;
+	}
+	angle_loop_previous_mistake = angle_loop_mistake;
+
+	// PID controller without filter on D-part
+
+	angle_loop_d_part = icm_processed_data[icm_gyroscope_y] * angle_regulator_kd;
+	angle_loop_p_part = angle_loop_mistake * angle_regulator_kp;
+	angle_loop_i_part = angle_loop_integral * angle_regulator_ki;
+
+	angle_loop_control_signal = -1* (angle_loop_p_part + angle_loop_i_part + angle_loop_d_part);
+
+//	motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f - rotation_mistake * 70);
+//	motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f + rotation_mistake * 70);
+	motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f - rotation_mistake * 70);
+	motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f + rotation_mistake * 70);
+
+	return;
+}
+
+// Надо ввести какой-нибудь флаг, который бы показывал, что робот находится в плохом состоянии для успешного балансирования.
+void handle_speed_reg(float average_motors_speed)
+{
+
+	if (balancing_fault)
+	{
+		speed_reg_integral = 0.0f;
+		speed_reg_mistake = 0.0f;
+		return;
+	}
+
+	speed_reg_mistake = speed_reg_task - average_motors_speed;
+
+	speed_loop_i_part = speed_reg_integral * speed_reg_ki;
+	speed_loop_p_part = speed_reg_mistake * speed_reg_kp;
+
+	if (speed_loop_i_part < -3)
+	{
+		speed_reg_control_signal = speed_loop_p_part - 3;
+	}
+	else if ( speed_loop_i_part > 3)
+	{
+		speed_reg_control_signal = speed_loop_p_part + 3;
+	}
+	else
+	{
+		speed_reg_control_signal = speed_loop_p_part + speed_loop_i_part;
+	}
+
+	angle_loop_task = actual_zero_angle + speed_reg_control_signal;
+//	if (speed_reg_control_signal < 10.0f && speed_reg_control_signal > -10.0f)
+//	{
+//		angle_loop_task = actual_zero_angle + speed_reg_control_signal;
+//	}
+
+}
+
 
 // ****** NRf24l01+ IRQ handler ****** //
 void EXTI2_3_IRQHandler()
@@ -411,123 +540,7 @@ void EXTI2_3_IRQHandler()
 }
 // **************************************** //
 
-// Место для черновых функций, специально для проекта балансирующего робота.
 
-// Данная функция должна принимать данные от IMU и давать задания движения на двигатели
-void handle_angle_reg(icm_20600 *icm_instance, int16_t icm_data[], float integration_period)
-{
-
-	// ICM data at input is actually raw, so it should be first converted into related angle based scales
-
-//	float icm_processed_data[7];
-	icm_20600_procces_raw_data(icm_instance, icm_data, icm_processed_data);
-
-	// Calculation of robot angle
-	// как сейчас проводятся вычисления: комплиментарный угол = (угол по акселерометру)*коэффициент + (приращение угла по гироскопу)*(1- коэффициант)
-	// Данный подход является совершенно неправильным, так как уменьшает реальный имеющийся угол в отношении коэффеициента деления. То есть реальный угол на выходе всегда был равен примерно реальный угол * коэффицент фильтра.
-	// что на самом деле совершенно неправильно. Вместо этого надо складывать угол по акселерометру и (приращение кгла по гироскопу + прошлый угол)
-	accelerometer_based_angle = atan2(-1 * icm_processed_data[icm_accelerometer_x], icm_processed_data[icm_accelerometer_z]) * 57.296f; // Angle in degrees
-	gyroscope_based_angle = angle_current_value + (icm_instance->previous_gyro_y + icm_processed_data[icm_gyroscope_y])/2.0f * integration_period;	// Разность между последним извесным значением угла и трапециидальным интегралом скорости вращения
-	icm_instance->previous_gyro_y = icm_processed_data[icm_gyroscope_y];
-	if(gyroscope_based_angle > 180.0f)
-	{
-		gyroscope_based_angle = -360 + gyroscope_based_angle;
-	}
-	if (gyroscope_based_angle < -180.0f)
-	{
-		gyroscope_based_angle = 360 + gyroscope_based_angle;
-	}
-
-	if ( (gyroscope_based_angle > 0.0f && accelerometer_based_angle < 0.0f) || (gyroscope_based_angle < 0.0f && accelerometer_based_angle > 0.0f) )
-	{
-		gyroscope_based_angle = accelerometer_based_angle;
-	}
-
-	// Проверкае на переход между -180 и 180 и соответственно смену знака
-
-	angle_current_value = accelerometer_based_angle * icm_instance->complementary_filter_coefficient + gyroscope_based_angle * (1.0f - icm_instance->complementary_filter_coefficient);
-//	angle_current_value = -1 * ( accelerometer_based_angle * icm_instance->complementary_filter_coefficient /*+ проверка знака */ - gyroscope_based_angle * (1.0f - icm_instance->complementary_filter_coefficient));
-
-	angle_loop_mistake = angle_loop_task - angle_current_value;
-
-	// If angle is too big too balance stop motors
-	if (angle_loop_mistake > 30.0f || angle_loop_mistake < -30.0f)
-	{
-		balancing_fault = 1;
-//		motor_reset(&motor1);
-//		motor_reset(&motor2);
-		// пока тестирую без регуляторов скорости
-		motor1.set_pwm_duty_cycle(0);
-		motor2.set_pwm_duty_cycle(0);
-		angle_loop_integral = 0.0f;
-		angle_loop_task = actual_zero_angle;
-		return;
-	}
-	else
-	{
-		balancing_fault = 0;
-	}
-
-	if (!((angle_loop_control_signal > angle_loop_max_output && angle_loop_mistake < 0.0f) || (angle_loop_control_signal < -angle_loop_max_output && angle_loop_mistake > 0.0f)))
-	{
-		// Если значение интеграла не находится в насыщении, интегрируем
-		angle_loop_integral += (angle_loop_mistake + angle_loop_previous_mistake) / 2.0f * integration_period;
-	}
-	angle_loop_previous_mistake = angle_loop_mistake;
-
-	// PID controller without filter on D-part
-
-	angle_loop_d_part = icm_processed_data[icm_gyroscope_y] * angle_regulator_kd;
-	angle_loop_p_part = angle_loop_mistake * angle_regulator_kp;
-	angle_loop_i_part = angle_loop_integral * angle_regulator_ki;
-
-	angle_loop_control_signal = -1* (angle_loop_p_part + angle_loop_i_part + angle_loop_d_part);
-
-	// Заставить моторы крутиться с нужной скоростью
-//	motor1.speed_controller->target_speed = angle_loop_control_signal;
-//	motor2.speed_controller->target_speed = angle_loop_control_signal;
-
-	motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
-	motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
-
-	return;
-}
-
-// Надо ввести какой-нибудь флаг, который бы показывал, что робот находится в плохом состоянии для успешного балансирования.
-void handle_speed_reg(float average_motors_speed)
-{
-
-	if (balancing_fault)
-	{
-		speed_reg_integral = 0.0f;
-		speed_reg_mistake = 0.0f;
-		return;
-	}
-
-	speed_reg_mistake = speed_reg_task - average_motors_speed;
-
-	speed_loop_i_part = speed_reg_integral * speed_reg_ki;
-	speed_loop_p_part = speed_reg_mistake * speed_reg_kp;
-
-	if (speed_loop_i_part < -5)
-	{
-		speed_reg_control_signal = speed_loop_p_part - 5;
-	}
-	else if ( speed_loop_i_part > 5)
-	{
-		speed_reg_control_signal = speed_loop_p_part + 5;
-	}
-	else
-	{
-		speed_reg_control_signal = speed_loop_p_part + speed_loop_i_part;
-	}
-
-	if (speed_reg_control_signal < 10.0f && speed_reg_control_signal > -10.0f)
-	{
-		angle_loop_task = actual_zero_angle + speed_reg_control_signal;
-	}
-
-}
 
 
 void icm_add_data_to_filter(icm_20600 * icm_instance, int32_t filter_array[7])
