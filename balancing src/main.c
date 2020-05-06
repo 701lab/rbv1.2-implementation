@@ -23,7 +23,7 @@
 // ********************************** //
 motor motor1 =
 			{
-					.encoder_constant = 1540.0f,
+					.encoder_constant = 937.2f,
 					.max_duty_cycle_coefficient = PWM_PRECISION
 			};
 
@@ -51,7 +51,7 @@ position_control motor1_position_controller =
 // ********************************** //
 motor motor2 =
 			{
-					.encoder_constant = 1540.0f,
+					.encoder_constant = 937.2f,
 					.max_duty_cycle_coefficient = PWM_PRECISION
 			};
 
@@ -120,8 +120,8 @@ float angle_loop_previous_mistake = 0.0f;
 float angle_loop_integral = 0.0f;
 float angle_loop_control_signal = 0.0f;
 float angle_regulator_kp = 0.3f;//0.4f;
-float angle_regulator_ki = 3.0f;//3.0f;
-float angle_regulator_kd = 0.0f;//0.01f;//0.001f; //02f; //0.01;
+float angle_regulator_ki = 4.0f;//3.0f;
+float angle_regulator_kd = 0.00f;//0.01f;//0.001f; //02f; //0.01;
 float balancing_fault = 0;
 
 float angle_loop_p_part = 0.0f;
@@ -133,8 +133,8 @@ float rotation_task = 0.0f;
 float speed_reg_mistake;
 float speed_reg_task = 0.0f;
 //float speed_reg_max_output = 10.0f;
-float speed_reg_ki = 0.0f; //1.2f;
-float speed_reg_kp = 1.0f;	//1.2f;
+float speed_reg_ki = 0.4f; //0.5f;
+float speed_reg_kp = 1.4f;	//1.5f;
 float speed_reg_integral = 0;
 float speed_reg_control_signal;
 
@@ -144,6 +144,7 @@ float speed_loop_i_part = 0.0f;
 int16_t previousEncoderTicks = 0;
 float current_m1_speed;
 float current_m2_speed;
+float angle_first_value = 0.0f;
 
 
 // Мусор для отладки
@@ -205,8 +206,8 @@ int main(void)
 
 	// Board is online LED
 	// Для отладки (проверки того, что новый код действительно был скомпилирована и прошит) время от времени буду менять, какой из светодиодов горт.
-//	GPIOD->ODR |= 0x08;
-	GPIOD->ODR |= 0x04;
+	GPIOD->ODR |= 0x08;
+//	GPIOD->ODR |= 0x04;
 //	GPIOD->ODR |= 0x02;
 //	GPIOD->ODR |= 0x01;
 
@@ -226,6 +227,11 @@ int main(void)
 
 	// If necessary imu can be calibrated
 //	imu_gyro_calibration(&robot_imu, gyro_calib_values);
+
+	icm_20600_get_proccesed_data(&robot_imu, icm_processed_data);
+
+	angle_current_value = atan2(-1 * icm_processed_data[icm_accelerometer_x], icm_processed_data[icm_accelerometer_z]) * 57.296f;
+	angle_first_value = angle_current_value;
 
 	while(1)
 	{
@@ -413,7 +419,7 @@ void handle_angle_reg(icm_20600 *icm_instance, int16_t icm_data[], float integra
 
 	// ICM data at input is actually raw, so it should be first converted into related angle based scales
 
-	float icm_processed_data[7];
+//	float icm_processed_data[7];
 	icm_20600_procces_raw_data(icm_instance, icm_data, icm_processed_data);
 
 	// Calculation of robot angle
@@ -423,6 +429,21 @@ void handle_angle_reg(icm_20600 *icm_instance, int16_t icm_data[], float integra
 	accelerometer_based_angle = atan2(-1 * icm_processed_data[icm_accelerometer_x], icm_processed_data[icm_accelerometer_z]) * 57.296f; // Angle in degrees
 	gyroscope_based_angle = angle_current_value + (icm_instance->previous_gyro_y + icm_processed_data[icm_gyroscope_y])/2.0f * integration_period;	// Разность между последним извесным значением угла и трапециидальным интегралом скорости вращения
 	icm_instance->previous_gyro_y = icm_processed_data[icm_gyroscope_y];
+	if(gyroscope_based_angle > 180.0f)
+	{
+		gyroscope_based_angle = -360 + gyroscope_based_angle;
+	}
+	if (gyroscope_based_angle < -180.0f)
+	{
+		gyroscope_based_angle = 360 + gyroscope_based_angle;
+	}
+
+	if ( (gyroscope_based_angle > 0.0f && accelerometer_based_angle < 0.0f) || (gyroscope_based_angle < 0.0f && accelerometer_based_angle > 0.0f) )
+	{
+		gyroscope_based_angle = accelerometer_based_angle;
+	}
+
+	// Проверкае на переход между -180 и 180 и соответственно смену знака
 
 	angle_current_value = accelerometer_based_angle * icm_instance->complementary_filter_coefficient + gyroscope_based_angle * (1.0f - icm_instance->complementary_filter_coefficient);
 //	angle_current_value = -1 * ( accelerometer_based_angle * icm_instance->complementary_filter_coefficient /*+ проверка знака */ - gyroscope_based_angle * (1.0f - icm_instance->complementary_filter_coefficient));
