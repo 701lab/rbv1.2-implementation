@@ -35,7 +35,7 @@
 
 	Determines control system outer loop frequency
  */
-#define SYSTICK_FREQUENCY				80		// Hz
+#define SYSTICK_FREQUENCY				160		// Hz
 
 /*
 	@brief Mistakes log is used to collect mistakes codes during runtime

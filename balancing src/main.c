@@ -256,13 +256,13 @@ uint32_t speed_loop_call_counter = 0;
 
 uint32_t angle_loop_call_counter = 0;
 
-#define ANGLE_LOOP_FREQUENCY				20	// Times per second. Must be not bigger then SYSTICK_FREQUENCY.
+#define ANGLE_LOOP_FREQUENCY				40	// Times per second. Must be not bigger then SYSTICK_FREQUENCY.
 #define ANGLE_LOOP_COUNTER_MAX_VALUE 		( SYSTICK_FREQUENCY / ANGLE_LOOP_FREQUENCY )	// Times.
 #define ANGLE_LOOP_PERIOD					( 1.0f / (float)(ANGLE_LOOP_FREQUENCY) )// Seconds.
 
 uint32_t angle_speed_loop_call_counter = 0;
 
-#define ANGLE_SPEED_LOOP_FREQUENCY			10
+#define ANGLE_SPEED_LOOP_FREQUENCY			20
 #define ANGLE_SPEED_LOOP_COUNTER_MAX_VALUE	( SYSTICK_FREQUENCY / ANGLE_SPEED_LOOP_FREQUENCY )
 #define ANGLE_SPEED_LOOP_PERIOD				( 1.0f / (float)(ANGLE_SPEED_LOOP_FREQUENCY) )
 
