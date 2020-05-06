@@ -119,8 +119,8 @@ float angle_loop_mistake;
 float angle_loop_previous_mistake = 0.0f;
 float angle_loop_integral = 0.0f;
 float angle_loop_control_signal = 0.0f;
-float angle_regulator_kp = 0.4f;//0.4f;
-float angle_regulator_ki = 2.0f;//3.0f;
+float angle_regulator_kp = 0.30f;//0.4f;
+float angle_regulator_ki = 2.8f;//3.0f;
 float angle_regulator_kd = 0.00f;//0.01f;//0.001f; //02f; //0.01;
 float balancing_fault = 0;
 
@@ -137,8 +137,8 @@ float rotation_integral = 0.0f;
 float speed_reg_mistake;
 float speed_reg_task = 0.0f;
 //float speed_reg_max_output = 10.0f;
-float speed_reg_ki = 1.0f; //0.5f;
-float speed_reg_kp = 3.2f;	//1.5f;
+float speed_reg_ki = 0.5f; //0.5f;
+float speed_reg_kp = 2.2f;	//1.5f;
 float speed_reg_integral = 0;
 float speed_reg_control_signal;
 
@@ -531,11 +531,11 @@ void EXTI2_3_IRQHandler()
 	// Evaluate the speed tasks
 	if(nrf_input_data[2] < 1000 /*means it up*/ && nrf_input_data[1] < 3000 && nrf_input_data[1] > 1000) // Forward
 	{
-		speed_reg_task = 1.0f;
+		speed_reg_task = 1.5f;
 	}
 	else if(nrf_input_data[2] < 1000 /*means it up*/ && nrf_input_data[1] < 1000)	// Forward left
 	{
-		speed_reg_task = 0.5f;
+		speed_reg_task = 1.0f;
 		robot_rotation_task = 0.5f;
 	}
 	else if(nrf_input_data[2] > 1000 && nrf_input_data[2] < 3000 && nrf_input_data[1] < 1000)	// Turn left
@@ -544,21 +544,21 @@ void EXTI2_3_IRQHandler()
 	}
 	else if(nrf_input_data[2] > 3000 && nrf_input_data[1] < 1000)	// Backward left
 	{
-		speed_reg_task = -0.5f;
+		speed_reg_task = -1.0f;
 		robot_rotation_task = -0.5f;
 	}
 	else if(nrf_input_data[2] > 3000  && nrf_input_data[1] < 3000 && nrf_input_data[1] > 1000)	// Backward
 	{
-		speed_reg_task = -1.0f;
+		speed_reg_task = -1.5f;
 	}
 	else if(nrf_input_data[2] > 3000 && nrf_input_data[1] > 3000)	// Backward right
 	{
-		speed_reg_task = -0.5f;
+		speed_reg_task = -1.0f;
 		robot_rotation_task = 0.5f;
 	}
 	else if(nrf_input_data[2] < 1000 && nrf_input_data[1] > 3000)	// Forward right
 	{
-		speed_reg_task = 0.5f;
+		speed_reg_task = 1.0f;
 		robot_rotation_task = -0.5f;
 	}
 	else if(nrf_input_data[2] > 1000 && nrf_input_data[2] < 3000 && nrf_input_data[1] > 3000)	// Turn right
