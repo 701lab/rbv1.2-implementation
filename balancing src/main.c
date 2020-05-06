@@ -128,9 +128,10 @@ float angle_loop_p_part = 0.0f;
 float angle_loop_i_part = 0.0f;
 float angle_loop_d_part = 0.0f;
 
-float rotation_task = 0.0f;
+float rotation_task = 1.0f;
 float rotation_mistake = 0.0f;
 float rotation_integral = 0.0f;
+
 // Speed regulator
 //float rotation_task = 0.0f;
 float speed_reg_mistake;
@@ -417,10 +418,38 @@ void handle_angle_reg(icm_20600 *icm_instance, int16_t icm_data[], float integra
 
 	angle_loop_control_signal = -1* (angle_loop_p_part + angle_loop_i_part + angle_loop_d_part);
 
-//	motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f - rotation_mistake * 70);
-//	motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f + rotation_mistake * 70);
-	motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f - rotation_mistake * 70);
-	motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f + rotation_mistake * 70);
+//	motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f );
+//	motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f );
+
+	// Попытки заставить робота поворачивать на месте
+
+	if( rotation_mistake > 0)
+	{
+		if (angle_loop_control_signal > 0)
+		{
+			motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
+			motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f + rotation_mistake * 300);
+
+		}
+		else{
+			motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f - rotation_mistake * 300);
+			motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
+		}
+	}
+	else
+	{
+		if(angle_loop_control_signal > 0)
+		{
+			motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f + rotation_mistake * 300);
+			motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
+		}
+		else{
+			motor1.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f);
+			motor2.set_pwm_duty_cycle(angle_loop_control_signal * 300.0f - rotation_mistake * 300);
+		}
+	}
+
+
 
 	return;
 }
