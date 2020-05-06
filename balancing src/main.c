@@ -133,8 +133,8 @@ float rotation_task = 0.0f;
 float speed_reg_mistake;
 float speed_reg_task = 0.0f;
 //float speed_reg_max_output = 10.0f;
-float speed_reg_ki = 0.5f; //0.5f;
-float speed_reg_kp = 2.0f;	//1.5f;
+float speed_reg_ki = 0.3f; //0.5f;
+float speed_reg_kp = 1.8f;	//1.5f;
 float speed_reg_integral = 0;
 float speed_reg_control_signal;
 
@@ -509,7 +509,18 @@ void handle_speed_reg(float average_motors_speed)
 	speed_loop_i_part = speed_reg_integral * speed_reg_ki;
 	speed_loop_p_part = speed_reg_mistake * speed_reg_kp;
 
-	speed_reg_control_signal = speed_loop_p_part + speed_loop_i_part;
+	if (speed_loop_i_part < -5)
+	{
+		speed_reg_control_signal = speed_loop_p_part - 5;
+	}
+	else if ( speed_loop_i_part > 5)
+	{
+		speed_reg_control_signal = speed_loop_p_part + 5;
+	}
+	else
+	{
+		speed_reg_control_signal = speed_loop_p_part + speed_loop_i_part;
+	}
 
 	if (speed_reg_control_signal < 10.0f && speed_reg_control_signal > -10.0f)
 	{
