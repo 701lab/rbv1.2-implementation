@@ -61,10 +61,5 @@ dkms.conf
 !implementation.h
 !implementation.c
 !implementaion_mistakes_codes.h
-
-#!/Inc/ # I should have all files in SRC, or even without a folder, so it will be easier to link them to project when I will submodule it 
-/Src/syscalls.c
-/Src/sysmem.c
-
-# it will be library, so we wont need main.c on gitHub
-# main.c 
+!*.md
+ 
