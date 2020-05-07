@@ -1,6 +1,0 @@
-[submodule "nrf24l01p_impi"]
-	path = nrf24l01p_impi
-	url = https://github.com/701lab/nrf24l01p_impi
-[submodule "icm-20600_impi"]
-	path = icm-20600_impi
-	url = https://github.com/701lab/icm-20600_impi
