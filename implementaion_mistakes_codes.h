@@ -4,9 +4,8 @@
  *  Created on: Mar 27, 2020
  *      Author: Андрей
  */
-
-#ifndef MISTAKES_CODES_H_
-#define MISTAKES_CODES_H_
+#ifndef IMPLEMENTATION_MISTAKES_CODES_H_
+	#define IMPLEMENTATION_MISTAKES_CODES_H_
 
 //*** MCU related mistakes ***//
 
@@ -36,4 +35,4 @@
 
 
 
-#endif /* MISTAKES_CODES_H_ */
+#endif /* IMPLEMENTATION_MISTAKES_CODES_H_ */
