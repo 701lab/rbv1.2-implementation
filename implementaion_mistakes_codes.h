@@ -8,8 +8,10 @@
 	#define IMPLEMENTATION_MISTAKES_CODES_H_
 
 //*** MCU related mistakes ***//
+#ifndef MCU_MISTAKES_OFFSET
+	#define MCU_MISTAKES_OFFSET					(0U)
+#endif
 
-#define MCU_MISTAKES_OFFSET					(0U)
 #define HSE_FAILED_TO_START					(1U) + MCU_MISTAKES_OFFSET
 #define HSE_FAILED_WHILE_RUNNING 			(2U) + MCU_MISTAKES_OFFSET
 #define	PLL_FAILED							(3U) + MCU_MISTAKES_OFFSET

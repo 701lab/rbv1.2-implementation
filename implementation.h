@@ -41,6 +41,7 @@
 #ifndef SYSTICK_FREQUENCY
 	#define SYSTICK_FREQUENCY				160		// Hz
 #endif /* SYSTICK_FREQUENCY */
+
 /*
 	@brief Mistakes log is used to collect mistakes codes during runtime
 
