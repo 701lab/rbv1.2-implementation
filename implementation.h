@@ -19,6 +19,7 @@
 #ifndef SYSCLK_FREQUENCY
 	#define SYSCLK_FREQUENCY 				48000000 // Hz = 24 Mhz
 #endif /* SYSCLK_FREQUENCY */
+
 /*
 	@brief 	PWM frequency for motor control in Hz and related PWM precision
 
